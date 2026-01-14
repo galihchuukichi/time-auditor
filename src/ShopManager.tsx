@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Settings } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Edit2, Trash2, Save, X, Settings, Download, Upload } from 'lucide-react';
 import { useData } from './DataContext';
 import type { ShopItem } from './store';
 
@@ -7,10 +7,12 @@ import type { ShopItem } from './store';
 const EMOJI_OPTIONS = ['☕', '🎮', '🎬', '🍰', '🍕', '📚', '🎵', '🏖️', '🎁', '💤', '🍿', '🎨', '🏃', '🎯', '🌟', '💪'];
 
 export function ShopManager() {
-    const { data, addShopItem, updateShopItem, deleteShopItem } = useData();
+    const { data, addShopItem, updateShopItem, deleteShopItem, exportData, importData } = useData();
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState({ name: '', image: '🎁', price: 1 });
+    const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleAdd = () => {
         if (!form.name.trim()) return;
@@ -49,6 +51,29 @@ export function ShopManager() {
         setForm({ name: '', image: '🎁', price: 1 });
     };
 
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const content = event.target?.result as string;
+            const success = importData(content);
+            setImportStatus(success ? 'success' : 'error');
+            setTimeout(() => setImportStatus('idle'), 3000);
+        };
+        reader.readAsText(file);
+
+        // Reset file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -60,6 +85,38 @@ export function ShopManager() {
                     <button onClick={() => setIsAdding(true)} className="btn btn-primary flex items-center gap-2">
                         <Plus className="w-4 h-4" /> Add Item
                     </button>
+                )}
+            </div>
+
+            {/* Data Backup Section */}
+            <div className="card">
+                <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                    <Download className="w-5 h-5" />
+                    Data Backup
+                </h3>
+                <p className="text-[var(--color-text-muted)] text-sm mb-4">
+                    Export your data to create a backup or import a previously saved backup file.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                    <button onClick={exportData} className="btn btn-success flex items-center gap-2">
+                        <Download className="w-4 h-4" /> Export Data
+                    </button>
+                    <button onClick={handleImportClick} className="btn btn-secondary flex items-center gap-2">
+                        <Upload className="w-4 h-4" /> Import Data
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json"
+                        onChange={handleFileChange}
+                        className="hidden"
+                    />
+                </div>
+                {importStatus === 'success' && (
+                    <p className="text-[var(--color-success)] text-sm mt-3">✓ Data imported successfully!</p>
+                )}
+                {importStatus === 'error' && (
+                    <p className="text-[var(--color-danger)] text-sm mt-3">✗ Failed to import data. Please check the file format.</p>
                 )}
             </div>
 
@@ -167,18 +224,18 @@ export function ShopManager() {
                                 <div className="text-4xl">{item.image}</div>
                                 <div className="flex-1">
                                     <p className="font-medium">{item.name}</p>
-                                    <p className="text-[var(--color-warning)] text-sm">{item.price.toFixed(2)} points</p>
+                                    <p className="text-[var(--color-highlight)] text-sm">{item.price.toFixed(2)} points</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => startEdit(item)}
-                                        className="p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
+                                        className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
                                     >
                                         <Edit2 className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={() => deleteShopItem(item.id)}
-                                        className="p-2 rounded-lg hover:bg-[var(--color-surface)] text-[var(--color-highlight)] transition-colors"
+                                        className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-danger)] transition-colors"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { LayoutDashboard, ListTodo, ShoppingBag, Settings, Bell } from 'lucide-react';
-import { DataProvider } from './DataContext';
+import { LayoutDashboard, ListTodo, ShoppingBag, Settings, Bell, Cloud, HardDrive } from 'lucide-react';
+import { DataProvider, useData } from './DataContext';
 import { TimerProvider, useTimer } from './TimerContext';
 import { Dashboard } from './Dashboard';
 import { Activities } from './Activities';
@@ -12,6 +12,7 @@ type Tab = 'dashboard' | 'activities' | 'shop' | 'manager';
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const timer = useTimer();
+  const { isCloudConnected, isLoading } = useData();
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
@@ -20,6 +21,17 @@ function AppContent() {
     { id: 'manager', label: 'Manage Shop', icon: <Settings className="w-5 h-5" /> },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-[var(--color-highlight)] border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-[var(--color-text-muted)]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -27,13 +39,27 @@ function AppContent() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Bell className={`w-6 h-6 ${timer.isRinging ? 'text-[var(--color-highlight)] animate-pulse-ring' : ''}`} />
-            Time Auditor
+            <span className="hidden sm:inline">Time Auditor</span>
+            <span className="sm:hidden">TA</span>
           </h1>
-          {timer.isRinging && (
-            <span className="px-3 py-1 bg-[var(--color-highlight)] rounded-full text-sm font-medium animate-pulse">
-              🔔 RINGING
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {isCloudConnected ? (
+              <span className="flex items-center gap-1 text-xs text-[var(--color-success)]" title="Connected to cloud">
+                <Cloud className="w-4 h-4" />
+                <span className="hidden sm:inline">Cloud</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]" title="Local storage only">
+                <HardDrive className="w-4 h-4" />
+                <span className="hidden sm:inline">Local</span>
+              </span>
+            )}
+            {timer.isRinging && (
+              <span className="px-3 py-1 bg-[var(--color-highlight)] rounded-full text-sm font-medium animate-pulse">
+                🔔
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -46,8 +72,8 @@ function AppContent() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-all whitespace-nowrap ${activeTab === tab.id
-                    ? 'text-[var(--color-highlight)] border-b-2 border-[var(--color-highlight)]'
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                  ? 'text-[var(--color-highlight)] border-b-2 border-[var(--color-highlight)]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                   }`}
               >
                 {tab.icon}
