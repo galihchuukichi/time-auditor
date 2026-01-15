@@ -17,6 +17,7 @@ import {
     saveCasinoReward as saveCasinoRewardToSupabase,
     deleteCasinoRewardFromSupabase,
     addCasinoGameHistory,
+    syncDataToSupabase,
 } from './supabase';
 
 interface DataContextType {
@@ -59,13 +60,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         async function initData() {
             if (isSupabaseConfigured()) {
+                setIsCloudConnected(true);
                 try {
                     const cloudData = await fetchDataFromSupabase();
                     if (cloudData) {
-                        // Merge cloud data with local data (cloud takes priority for existing items)
+                        // Use cloud data (cloud takes priority)
                         setData(cloudData);
                         saveData(cloudData); // Also save to localStorage as backup
-                        setIsCloudConnected(true);
                     }
                 } catch (error) {
                     console.error('Failed to load from Supabase:', error);
@@ -81,12 +82,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         saveData(data);
     }, [data]);
 
-    // Sync points to cloud
+    // Sync points to cloud whenever they change
     useEffect(() => {
-        if (isCloudConnected) {
+        if (isSupabaseConfigured()) {
             updateUserPoints(data.currentPoints);
         }
-    }, [data.currentPoints, isCloudConnected]);
+    }, [data.currentPoints]);
 
     const addPoints = useCallback((points: number) => {
         setData(prev => ({ ...prev, currentPoints: prev.currentPoints + points }));
@@ -99,42 +100,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ...prev,
             activities: [...prev.activities, newActivity],
         }));
-        if (isCloudConnected) {
+        // Always try to sync to Supabase if configured
+        if (isSupabaseConfigured()) {
             saveActivityToSupabase(newActivity);
         }
-    }, [isCloudConnected]);
+    }, []);
 
     const updateActivity = useCallback((id: string, updates: Partial<Activity>) => {
         setData(prev => {
             const updated = prev.activities.map(a => (a.id === id ? { ...a, ...updates } : a));
             const activity = updated.find(a => a.id === id);
-            if (activity && isCloudConnected) {
+            if (activity && isSupabaseConfigured()) {
                 saveActivityToSupabase(activity);
             }
             return { ...prev, activities: updated };
         });
-    }, [isCloudConnected]);
+    }, []);
 
     const deleteActivity = useCallback((id: string) => {
         setData(prev => ({
             ...prev,
             activities: prev.activities.filter(a => a.id !== id),
         }));
-        if (isCloudConnected) {
+        if (isSupabaseConfigured()) {
             deleteActivityFromSupabase(id);
         }
-    }, [isCloudConnected]);
+    }, []);
 
     const toggleActivityVisibility = useCallback((id: string) => {
         setData(prev => {
             const updated = prev.activities.map(a => (a.id === id ? { ...a, isVisible: !a.isVisible } : a));
             const activity = updated.find(a => a.id === id);
-            if (activity && isCloudConnected) {
+            if (activity && isSupabaseConfigured()) {
                 saveActivityToSupabase(activity);
             }
             return { ...prev, activities: updated };
         });
-    }, [isCloudConnected]);
+    }, []);
 
     const logActivity = useCallback((id: string) => {
         setData(prev => {
@@ -147,7 +149,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 type: 'activity',
                 pointsChange: activity.points,
             };
-            if (isCloudConnected) {
+            if (isSupabaseConfigured()) {
                 addLogEntry(newLog);
             }
             return {
@@ -156,7 +158,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 logs: [...(prev.logs || []), newLog],
             };
         });
-    }, [isCloudConnected]);
+    }, []);
 
     // Shop functions
     const addShopItem = useCallback((item: Omit<ShopItem, 'id'>) => {
@@ -165,31 +167,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ...prev,
             shopItems: [...prev.shopItems, newItem],
         }));
-        if (isCloudConnected) {
+        if (isSupabaseConfigured()) {
             saveShopItemToSupabase(newItem);
         }
-    }, [isCloudConnected]);
+    }, []);
 
     const updateShopItem = useCallback((id: string, updates: Partial<ShopItem>) => {
         setData(prev => {
             const updated = prev.shopItems.map(i => (i.id === id ? { ...i, ...updates } : i));
             const item = updated.find(i => i.id === id);
-            if (item && isCloudConnected) {
+            if (item && isSupabaseConfigured()) {
                 saveShopItemToSupabase(item);
             }
             return { ...prev, shopItems: updated };
         });
-    }, [isCloudConnected]);
+    }, []);
 
     const deleteShopItem = useCallback((id: string) => {
         setData(prev => ({
             ...prev,
             shopItems: prev.shopItems.filter(i => i.id !== id),
         }));
-        if (isCloudConnected) {
+        if (isSupabaseConfigured()) {
             deleteShopItemFromSupabase(id);
         }
-    }, [isCloudConnected]);
+    }, []);
 
     const purchaseItem = useCallback((id: string): boolean => {
         let success = false;
@@ -205,7 +207,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 pointsChange: -item.price,
             };
             const purchase = { itemId: id, itemName: item.name, price: item.price, date: new Date().toISOString() };
-            if (isCloudConnected) {
+            if (isSupabaseConfigured()) {
                 addLogEntry(newLog);
                 addPurchaseHistory(purchase);
             }
@@ -217,7 +219,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             };
         });
         return success;
-    }, [isCloudConnected]);
+    }, []);
 
     // Timeline functions
     const addTimelineEntry = useCallback((entry: Omit<TimelineEntry, 'id'>) => {
@@ -230,7 +232,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             type: 'timeline_add',
             pointsChange: points,
         };
-        if (isCloudConnected) {
+        if (isSupabaseConfigured()) {
             saveTimelineEntryToSupabase(newEntry);
             addLogEntry(newLog);
         }
@@ -240,7 +242,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             currentPoints: prev.currentPoints + points,
             logs: [...(prev.logs || []), newLog],
         }));
-    }, [isCloudConnected]);
+    }, []);
 
     const removeTimelineEntry = useCallback((id: string) => {
         setData(prev => {
@@ -254,7 +256,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 type: 'timeline_remove',
                 pointsChange: -points,
             };
-            if (isCloudConnected) {
+            if (isSupabaseConfigured()) {
                 deleteTimelineEntryFromSupabase(id);
                 addLogEntry(newLog);
             }
@@ -265,7 +267,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 logs: [...(prev.logs || []), newLog],
             };
         });
-    }, [isCloudConnected]);
+    }, []);
 
     // Casino functions
     const addCasinoReward = useCallback((reward: Omit<CasinoReward, 'id'>) => {
@@ -274,31 +276,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ...prev,
             casinoRewards: [...prev.casinoRewards, newReward],
         }));
-        if (isCloudConnected) {
+        if (isSupabaseConfigured()) {
             saveCasinoRewardToSupabase(newReward);
         }
-    }, [isCloudConnected]);
+    }, []);
 
     const updateCasinoReward = useCallback((id: string, updates: Partial<CasinoReward>) => {
         setData(prev => {
             const updated = prev.casinoRewards.map(r => (r.id === id ? { ...r, ...updates } : r));
             const reward = updated.find(r => r.id === id);
-            if (reward && isCloudConnected) {
+            if (reward && isSupabaseConfigured()) {
                 saveCasinoRewardToSupabase(reward);
             }
             return { ...prev, casinoRewards: updated };
         });
-    }, [isCloudConnected]);
+    }, []);
 
     const deleteCasinoReward = useCallback((id: string) => {
         setData(prev => ({
             ...prev,
             casinoRewards: prev.casinoRewards.filter(r => r.id !== id),
         }));
-        if (isCloudConnected) {
+        if (isSupabaseConfigured()) {
             deleteCasinoRewardFromSupabase(id);
         }
-    }, [isCloudConnected]);
+    }, []);
 
     const playCasinoGame = useCallback((cost: number): { dice1: number; dice2: number; total: number; won: boolean; reward?: CasinoReward } => {
         const dice1 = Math.floor(Math.random() * 6) + 1; // 1-6
@@ -347,13 +349,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
             logs: [...(prev.logs || []), newLog],
         }));
 
-        if (isCloudConnected) {
+        if (isSupabaseConfigured()) {
             addCasinoGameHistory(historyEntry);
             addLogEntry(newLog);
         }
 
         return { dice1, dice2, total, won, reward: matchingReward };
-    }, [data.casinoRewards, isCloudConnected]);
+    }, [data.casinoRewards]);
 
     // Backup functions
     const exportData = useCallback(() => {
@@ -376,7 +378,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (!Array.isArray(parsed.activities)) return false;
             if (!Array.isArray(parsed.shopItems)) return false;
 
-            setData({
+            const newData: AppData = {
                 activities: parsed.activities || [],
                 shopItems: parsed.shopItems || [],
                 currentPoints: parsed.currentPoints || 0,
@@ -385,7 +387,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 logs: parsed.logs || [],
                 casinoRewards: parsed.casinoRewards || [],
                 casinoHistory: parsed.casinoHistory || [],
-            });
+            };
+
+            setData(newData);
+
+            // Also sync to Supabase if configured
+            if (isSupabaseConfigured()) {
+                syncDataToSupabase(newData);
+            }
+
             return true;
         } catch (e) {
             console.error('Failed to import data:', e);
