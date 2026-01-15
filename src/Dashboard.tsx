@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Bell, BellOff, Clock, Power, PowerOff, X, ClipboardList, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BellOff, Clock, Power, PowerOff, X, ClipboardList, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTimer } from './TimerContext';
 import { useData } from './DataContext';
 import { PLANNING_POINTS, AUDITING_POINTS } from './store';
