@@ -109,13 +109,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const updateActivity = useCallback((id: string, updates: Partial<Activity>) => {
         setData(prev => {
             const updated = prev.activities.map(a => (a.id === id ? { ...a, ...updates } : a));
-            const activity = updated.find(a => a.id === id);
-            if (activity && isSupabaseConfigured()) {
-                saveActivityToSupabase(activity);
-            }
             return { ...prev, activities: updated };
         });
-    }, []);
+
+        // Side effect outside updater
+        const activityToCheck = data.activities.find(a => a.id === id);
+        if (activityToCheck && isSupabaseConfigured()) {
+            // We need the updated version. 
+            // Since state update is async, we manually construct the updated object for the side effect
+            const updatedActivity = { ...activityToCheck, ...updates };
+            saveActivityToSupabase(updatedActivity);
+        }
+    }, [data.activities]);
 
     const deleteActivity = useCallback((id: string) => {
         setData(prev => ({
@@ -130,35 +135,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const toggleActivityVisibility = useCallback((id: string) => {
         setData(prev => {
             const updated = prev.activities.map(a => (a.id === id ? { ...a, isVisible: !a.isVisible } : a));
-            const activity = updated.find(a => a.id === id);
-            if (activity && isSupabaseConfigured()) {
-                saveActivityToSupabase(activity);
-            }
             return { ...prev, activities: updated };
         });
-    }, []);
+
+        const activity = data.activities.find(a => a.id === id);
+        if (activity && isSupabaseConfigured()) {
+            // Construct updated state for DB
+            saveActivityToSupabase({ ...activity, isVisible: !activity.isVisible });
+        }
+    }, [data.activities]);
 
     const logActivity = useCallback((id: string) => {
-        setData(prev => {
-            const activity = prev.activities.find(a => a.id === id);
-            if (!activity) return prev;
-            const newLog: LogEntry = {
-                id: generateId(),
-                message: `Completed: ${activity.name}`,
-                timestamp: new Date().toISOString(),
-                type: 'activity',
-                pointsChange: activity.points,
-            };
-            if (isSupabaseConfigured()) {
-                addLogEntry(newLog);
-            }
-            return {
-                ...prev,
-                currentPoints: prev.currentPoints + activity.points,
-                logs: [...(prev.logs || []), newLog],
-            };
-        });
-    }, []);
+        const activity = data.activities.find(a => a.id === id);
+        if (!activity) return;
+
+        const newLog: LogEntry = {
+            id: generateId(),
+            message: `Completed: ${activity.name}`,
+            timestamp: new Date().toISOString(),
+            type: 'activity',
+            pointsChange: activity.points,
+        };
+
+        if (isSupabaseConfigured()) {
+            addLogEntry(newLog);
+        }
+
+        setData(prev => ({
+            ...prev,
+            currentPoints: prev.currentPoints + activity.points,
+            logs: [...(prev.logs || []), newLog],
+        }));
+    }, [data.activities]);
 
     // Shop functions
     const addShopItem = useCallback((item: Omit<ShopItem, 'id'>) => {
@@ -175,13 +183,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const updateShopItem = useCallback((id: string, updates: Partial<ShopItem>) => {
         setData(prev => {
             const updated = prev.shopItems.map(i => (i.id === id ? { ...i, ...updates } : i));
-            const item = updated.find(i => i.id === id);
-            if (item && isSupabaseConfigured()) {
-                saveShopItemToSupabase(item);
-            }
             return { ...prev, shopItems: updated };
         });
-    }, []);
+
+        const item = data.shopItems.find(i => i.id === id);
+        if (item && isSupabaseConfigured()) {
+            saveShopItemToSupabase({ ...item, ...updates });
+        }
+    }, [data.shopItems]);
 
     const deleteShopItem = useCallback((id: string) => {
         setData(prev => ({
@@ -194,32 +203,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const purchaseItem = useCallback((id: string): boolean => {
-        let success = false;
-        setData(prev => {
-            const item = prev.shopItems.find(i => i.id === id);
-            if (!item || prev.currentPoints < item.price) return prev;
-            success = true;
-            const newLog: LogEntry = {
-                id: generateId(),
-                message: `Purchased: ${item.name}`,
-                timestamp: new Date().toISOString(),
-                type: 'purchase',
-                pointsChange: -item.price,
-            };
-            const purchase = { itemId: id, itemName: item.name, price: item.price, date: new Date().toISOString() };
-            if (isSupabaseConfigured()) {
-                addLogEntry(newLog);
-                addPurchaseHistory(purchase);
-            }
-            return {
-                ...prev,
-                currentPoints: prev.currentPoints - item.price,
-                purchaseHistory: [...prev.purchaseHistory, purchase],
-                logs: [...(prev.logs || []), newLog],
-            };
-        });
-        return success;
-    }, []);
+        const item = data.shopItems.find(i => i.id === id);
+        if (!item || data.currentPoints < item.price) return false;
+
+        const newLog: LogEntry = {
+            id: generateId(),
+            message: `Purchased: ${item.name}`,
+            timestamp: new Date().toISOString(),
+            type: 'purchase',
+            pointsChange: -item.price,
+        };
+        const purchase = { itemId: id, itemName: item.name, price: item.price, date: new Date().toISOString() };
+
+        if (isSupabaseConfigured()) {
+            addLogEntry(newLog);
+            addPurchaseHistory(purchase);
+        }
+
+        setData(prev => ({
+            ...prev,
+            currentPoints: prev.currentPoints - item.price,
+            purchaseHistory: [...prev.purchaseHistory, purchase],
+            logs: [...(prev.logs || []), newLog],
+        }));
+
+        return true;
+    }, [data.shopItems, data.currentPoints]);
 
     // Timeline functions
     const addTimelineEntry = useCallback((entry: Omit<TimelineEntry, 'id'>) => {
@@ -232,10 +241,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
             type: 'timeline_add',
             pointsChange: points,
         };
+
         if (isSupabaseConfigured()) {
             saveTimelineEntryToSupabase(newEntry);
             addLogEntry(newLog);
         }
+
         setData(prev => ({
             ...prev,
             timelineEntries: [...prev.timelineEntries, newEntry],
@@ -245,29 +256,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const removeTimelineEntry = useCallback((id: string) => {
-        setData(prev => {
-            const entry = prev.timelineEntries.find(e => e.id === id);
-            if (!entry) return prev;
-            const points = entry.type === 'planning' ? PLANNING_POINTS : AUDITING_POINTS;
-            const newLog: LogEntry = {
-                id: generateId(),
-                message: `Removed ${entry.type} entry: ${entry.description}`,
-                timestamp: new Date().toISOString(),
-                type: 'timeline_remove',
-                pointsChange: -points,
-            };
-            if (isSupabaseConfigured()) {
-                deleteTimelineEntryFromSupabase(id);
-                addLogEntry(newLog);
-            }
-            return {
-                ...prev,
-                timelineEntries: prev.timelineEntries.filter(e => e.id !== id),
-                currentPoints: prev.currentPoints - points,
-                logs: [...(prev.logs || []), newLog],
-            };
-        });
-    }, []);
+        const entry = data.timelineEntries.find(e => e.id === id);
+        if (!entry) return;
+
+        const points = entry.type === 'planning' ? PLANNING_POINTS : AUDITING_POINTS;
+        const newLog: LogEntry = {
+            id: generateId(),
+            message: `Removed ${entry.type} entry: ${entry.description}`,
+            timestamp: new Date().toISOString(),
+            type: 'timeline_remove',
+            pointsChange: -points,
+        };
+
+        if (isSupabaseConfigured()) {
+            deleteTimelineEntryFromSupabase(id);
+            addLogEntry(newLog);
+        }
+
+        setData(prev => ({
+            ...prev,
+            timelineEntries: prev.timelineEntries.filter(e => e.id !== id),
+            currentPoints: prev.currentPoints - points,
+            logs: [...(prev.logs || []), newLog],
+        }));
+    }, [data.timelineEntries]);
 
     // Casino functions
     const addCasinoReward = useCallback((reward: Omit<CasinoReward, 'id'>) => {
@@ -284,13 +296,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const updateCasinoReward = useCallback((id: string, updates: Partial<CasinoReward>) => {
         setData(prev => {
             const updated = prev.casinoRewards.map(r => (r.id === id ? { ...r, ...updates } : r));
-            const reward = updated.find(r => r.id === id);
-            if (reward && isSupabaseConfigured()) {
-                saveCasinoRewardToSupabase(reward);
-            }
             return { ...prev, casinoRewards: updated };
         });
-    }, []);
+
+        const reward = data.casinoRewards.find(r => r.id === id);
+        if (reward && isSupabaseConfigured()) {
+            saveCasinoRewardToSupabase({ ...reward, ...updates });
+        }
+    }, [data.casinoRewards]);
 
     const deleteCasinoReward = useCallback((id: string) => {
         setData(prev => ({
@@ -342,17 +355,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
             pointsChange: -cost,
         };
 
+        if (isSupabaseConfigured()) {
+            addCasinoGameHistory(historyEntry);
+            addLogEntry(newLog);
+        }
+
         setData(prev => ({
             ...prev,
             currentPoints: prev.currentPoints - cost,
             casinoHistory: [historyEntry, ...prev.casinoHistory],
             logs: [...(prev.logs || []), newLog],
         }));
-
-        if (isSupabaseConfigured()) {
-            addCasinoGameHistory(historyEntry);
-            addLogEntry(newLog);
-        }
 
         return { dice1, dice2, total, won, reward: matchingReward };
     }, [data.casinoRewards]);

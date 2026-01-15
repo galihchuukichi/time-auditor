@@ -52,8 +52,8 @@ export interface CasinoGameHistory {
 }
 
 // Point values for timeline entries
-export const PLANNING_POINTS = 0.15;
-export const AUDITING_POINTS = 0.4;
+export const PLANNING_POINTS = 3;
+export const AUDITING_POINTS = 8;
 
 export interface AppData {
     activities: Activity[];
