@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { loadData, saveData, generateId, PLANNING_POINTS, AUDITING_POINTS } from './store';
 import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory } from './store';
@@ -55,6 +55,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const [data, setData] = useState<AppData>(() => loadData());
     const [isLoading, setIsLoading] = useState(true);
     const [isCloudConnected, setIsCloudConnected] = useState(false);
+    // Track if initial data load is complete to prevent syncing default values back to cloud
+    const hasInitializedRef = useRef(false);
 
     // Load data from Supabase on mount if configured
     useEffect(() => {
@@ -72,6 +74,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     console.error('Failed to load from Supabase:', error);
                 }
             }
+            // Mark initialization as complete AFTER setting cloud data
+            hasInitializedRef.current = true;
             setIsLoading(false);
         }
         initData();
@@ -82,8 +86,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         saveData(data);
     }, [data]);
 
-    // Sync points to cloud whenever they change
+    // Sync points to cloud whenever they change (but only after initial load is complete)
     useEffect(() => {
+        // Skip syncing during initial load to prevent overwriting cloud data with default values
+        if (!hasInitializedRef.current) {
+            return;
+        }
         if (isSupabaseConfigured()) {
             updateUserPoints(data.currentPoints);
         }
