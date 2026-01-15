@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { loadData, saveData, generateId, PLANNING_POINTS, AUDITING_POINTS } from './store';
-import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry } from './store';
+import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory } from './store';
 import {
     isSupabaseConfigured,
     fetchDataFromSupabase,
@@ -14,6 +14,9 @@ import {
     updateUserPoints,
     addLogEntry,
     addPurchaseHistory,
+    saveCasinoReward as saveCasinoRewardToSupabase,
+    deleteCasinoRewardFromSupabase,
+    addCasinoGameHistory,
 } from './supabase';
 
 interface DataContextType {
@@ -35,6 +38,11 @@ interface DataContextType {
     // Timeline
     addTimelineEntry: (entry: Omit<TimelineEntry, 'id'>) => void;
     removeTimelineEntry: (id: string) => void;
+    // Casino
+    addCasinoReward: (reward: Omit<CasinoReward, 'id'>) => void;
+    updateCasinoReward: (id: string, updates: Partial<CasinoReward>) => void;
+    deleteCasinoReward: (id: string) => void;
+    playCasinoGame: (cost: number) => { dice1: number; dice2: number; total: number; won: boolean; reward?: CasinoReward };
     // Backup
     exportData: () => void;
     importData: (jsonString: string) => boolean;
@@ -259,6 +267,94 @@ export function DataProvider({ children }: { children: ReactNode }) {
         });
     }, [isCloudConnected]);
 
+    // Casino functions
+    const addCasinoReward = useCallback((reward: Omit<CasinoReward, 'id'>) => {
+        const newReward = { ...reward, id: generateId() };
+        setData(prev => ({
+            ...prev,
+            casinoRewards: [...prev.casinoRewards, newReward],
+        }));
+        if (isCloudConnected) {
+            saveCasinoRewardToSupabase(newReward);
+        }
+    }, [isCloudConnected]);
+
+    const updateCasinoReward = useCallback((id: string, updates: Partial<CasinoReward>) => {
+        setData(prev => {
+            const updated = prev.casinoRewards.map(r => (r.id === id ? { ...r, ...updates } : r));
+            const reward = updated.find(r => r.id === id);
+            if (reward && isCloudConnected) {
+                saveCasinoRewardToSupabase(reward);
+            }
+            return { ...prev, casinoRewards: updated };
+        });
+    }, [isCloudConnected]);
+
+    const deleteCasinoReward = useCallback((id: string) => {
+        setData(prev => ({
+            ...prev,
+            casinoRewards: prev.casinoRewards.filter(r => r.id !== id),
+        }));
+        if (isCloudConnected) {
+            deleteCasinoRewardFromSupabase(id);
+        }
+    }, [isCloudConnected]);
+
+    const playCasinoGame = useCallback((cost: number): { dice1: number; dice2: number; total: number; won: boolean; reward?: CasinoReward } => {
+        const dice1 = Math.floor(Math.random() * 6) + 1; // 1-6
+        const dice2 = Math.floor(Math.random() * 6) + 1; // 1-6
+        const total = dice1 + dice2; // 2-12
+        let won = false;
+        let matchingReward: CasinoReward | undefined;
+
+        // Find best reward for this roll (highest minRoll that the player meets)
+        const eligibleRewards = data.casinoRewards.filter(r => total >= r.minRoll);
+        if (eligibleRewards.length > 0) {
+            matchingReward = eligibleRewards.reduce((best, current) =>
+                current.minRoll > best.minRoll ? current : best
+            );
+            won = true;
+        }
+
+        // Deduct cost and record history
+        const historyEntry: CasinoGameHistory = {
+            id: generateId(),
+            game: 'dice',
+            dice1,
+            dice2,
+            total,
+            cost,
+            won,
+            rewardId: matchingReward?.id,
+            rewardName: matchingReward?.name,
+            timestamp: new Date().toISOString(),
+        };
+
+        const newLog: LogEntry = {
+            id: generateId(),
+            message: won
+                ? `🎲 Casino: Rolled ${dice1}+${dice2}=${total}, won "${matchingReward?.name}"!`
+                : `🎲 Casino: Rolled ${dice1}+${dice2}=${total}, no win`,
+            timestamp: new Date().toISOString(),
+            type: 'casino',
+            pointsChange: -cost,
+        };
+
+        setData(prev => ({
+            ...prev,
+            currentPoints: prev.currentPoints - cost,
+            casinoHistory: [historyEntry, ...prev.casinoHistory],
+            logs: [...(prev.logs || []), newLog],
+        }));
+
+        if (isCloudConnected) {
+            addCasinoGameHistory(historyEntry);
+            addLogEntry(newLog);
+        }
+
+        return { dice1, dice2, total, won, reward: matchingReward };
+    }, [data.casinoRewards, isCloudConnected]);
+
     // Backup functions
     const exportData = useCallback(() => {
         const dataStr = JSON.stringify(data, null, 2);
@@ -287,6 +383,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 purchaseHistory: parsed.purchaseHistory || [],
                 timelineEntries: parsed.timelineEntries || [],
                 logs: parsed.logs || [],
+                casinoRewards: parsed.casinoRewards || [],
+                casinoHistory: parsed.casinoHistory || [],
             });
             return true;
         } catch (e) {
@@ -313,6 +411,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 purchaseItem,
                 addTimelineEntry,
                 removeTimelineEntry,
+                addCasinoReward,
+                updateCasinoReward,
+                deleteCasinoReward,
+                playCasinoGame,
                 exportData,
                 importData,
             }}

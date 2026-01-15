@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry } from './store';
+import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory } from './store';
 
 // Supabase configuration
 // Replace these with your actual Supabase project credentials
@@ -24,13 +24,15 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
     if (!supabase) return null;
 
     try {
-        const [activitiesRes, shopItemsRes, timelineRes, userDataRes, purchaseRes, logsRes] = await Promise.all([
+        const [activitiesRes, shopItemsRes, timelineRes, userDataRes, purchaseRes, logsRes, casinoRewardsRes, casinoHistoryRes] = await Promise.all([
             supabase.from('activities').select('*'),
             supabase.from('shop_items').select('*'),
             supabase.from('timeline_entries').select('*'),
             supabase.from('user_data').select('*').eq('user_id', DEFAULT_USER_ID).single(),
             supabase.from('purchase_history').select('*'),
             supabase.from('logs').select('*').order('created_at', { ascending: true }),
+            supabase.from('casino_rewards').select('*'),
+            supabase.from('casino_history').select('*').order('created_at', { ascending: false }),
         ]);
 
         const activities: Activity[] = (activitiesRes.data || []).map(a => ({
@@ -71,6 +73,28 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             date: p.purchased_at,
         }));
 
+        const casinoRewards: CasinoReward[] = (casinoRewardsRes.data || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            image: c.image,
+            minRoll: c.min_roll,
+            cost: c.cost || 1,
+            description: c.description,
+        }));
+
+        const casinoHistory: CasinoGameHistory[] = (casinoHistoryRes.data || []).map(h => ({
+            id: h.id,
+            game: h.game as 'dice',
+            dice1: h.dice1 || h.roll || 1,
+            dice2: h.dice2 || 1,
+            total: h.total || h.roll || 2,
+            cost: h.cost,
+            won: h.won,
+            rewardId: h.reward_id,
+            rewardName: h.reward_name,
+            timestamp: h.created_at,
+        }));
+
         return {
             activities,
             shopItems,
@@ -78,12 +102,15 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             currentPoints: userDataRes.data?.current_points || 0,
             purchaseHistory,
             logs,
+            casinoRewards,
+            casinoHistory,
         };
     } catch (error) {
         console.error('Error fetching data from Supabase:', error);
         return null;
     }
 }
+
 
 // Save activity to Supabase
 export async function saveActivity(activity: Activity): Promise<boolean> {
@@ -219,6 +246,11 @@ export async function syncDataToSupabase(data: AppData): Promise<boolean> {
             await saveTimelineEntry(entry);
         }
 
+        // Sync casino rewards
+        for (const reward of data.casinoRewards) {
+            await saveCasinoReward(reward);
+        }
+
         // Update points
         await updateUserPoints(data.currentPoints);
 
@@ -227,4 +259,49 @@ export async function syncDataToSupabase(data: AppData): Promise<boolean> {
         console.error('Error syncing to Supabase:', error);
         return false;
     }
+}
+
+// Save casino reward to Supabase
+export async function saveCasinoReward(reward: CasinoReward): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase.from('casino_rewards').upsert({
+        id: reward.id,
+        user_id: DEFAULT_USER_ID,
+        name: reward.name,
+        image: reward.image,
+        min_roll: reward.minRoll,
+        cost: reward.cost,
+        description: reward.description,
+    });
+
+    return !error;
+}
+
+// Delete casino reward from Supabase
+export async function deleteCasinoRewardFromSupabase(id: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase.from('casino_rewards').delete().eq('id', id);
+    return !error;
+}
+
+// Add casino game history entry to Supabase
+export async function addCasinoGameHistory(history: CasinoGameHistory): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase.from('casino_history').insert({
+        id: history.id,
+        user_id: DEFAULT_USER_ID,
+        game: history.game,
+        dice1: history.dice1,
+        dice2: history.dice2,
+        total: history.total,
+        cost: history.cost,
+        won: history.won,
+        reward_id: history.rewardId,
+        reward_name: history.rewardName,
+    });
+
+    return !error;
 }

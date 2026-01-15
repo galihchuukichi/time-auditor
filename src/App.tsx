@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { LayoutDashboard, ListTodo, ShoppingBag, Settings, Bell, Cloud, HardDrive } from 'lucide-react';
+import { LayoutDashboard, ListTodo, ShoppingBag, Settings, Bell, Cloud, HardDrive, Dice6, Trophy } from 'lucide-react';
 import { DataProvider, useData } from './DataContext';
 import { TimerProvider, useTimer } from './TimerContext';
 import { Dashboard } from './Dashboard';
 import { Activities } from './Activities';
 import { Shop } from './Shop';
 import { ShopManager } from './ShopManager';
+import { Casino } from './Casino';
+import { CasinoManager } from './CasinoManager';
 
-type Tab = 'dashboard' | 'activities' | 'shop' | 'manager';
+type Tab = 'dashboard' | 'activities' | 'shop' | 'manager' | 'casino' | 'casino-manager';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -19,6 +21,8 @@ function AppContent() {
     { id: 'activities', label: 'Activities', icon: <ListTodo className="w-5 h-5" /> },
     { id: 'shop', label: 'Shop', icon: <ShoppingBag className="w-5 h-5" /> },
     { id: 'manager', label: 'Manage Shop', icon: <Settings className="w-5 h-5" /> },
+    { id: 'casino', label: 'Casino', icon: <Dice6 className="w-5 h-5" /> },
+    { id: 'casino-manager', label: 'Manage Casino', icon: <Trophy className="w-5 h-5" /> },
   ];
 
   if (isLoading) {
@@ -90,6 +94,8 @@ function AppContent() {
         {activeTab === 'activities' && <Activities />}
         {activeTab === 'shop' && <Shop />}
         {activeTab === 'manager' && <ShopManager />}
+        {activeTab === 'casino' && <Casino />}
+        {activeTab === 'casino-manager' && <CasinoManager />}
       </main>
 
       {/* Footer */}

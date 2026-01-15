@@ -94,3 +94,43 @@ CREATE INDEX IF NOT EXISTS idx_shop_items_user_id ON shop_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_timeline_entries_user_id ON timeline_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_timeline_entries_date ON timeline_entries(date);
 CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at);
+
+-- Casino rewards table
+CREATE TABLE IF NOT EXISTS casino_rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID DEFAULT '00000000-0000-0000-0000-000000000000',
+  name TEXT NOT NULL,
+  image TEXT NOT NULL,
+  min_roll INTEGER NOT NULL CHECK (min_roll >= 1 AND min_roll <= 6),
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Casino game history table
+CREATE TABLE IF NOT EXISTS casino_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID DEFAULT '00000000-0000-0000-0000-000000000000',
+  game TEXT NOT NULL DEFAULT 'dice',
+  roll INTEGER NOT NULL,
+  cost DOUBLE PRECISION NOT NULL,
+  won BOOLEAN NOT NULL DEFAULT false,
+  reward_id UUID,
+  reward_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for casino tables
+ALTER TABLE casino_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE casino_history ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for casino tables
+DROP POLICY IF EXISTS "Allow all casino_rewards" ON casino_rewards;
+CREATE POLICY "Allow all casino_rewards" ON casino_rewards FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all casino_history" ON casino_history;
+CREATE POLICY "Allow all casino_history" ON casino_history FOR ALL USING (true) WITH CHECK (true);
+
+-- Indexes for casino tables
+CREATE INDEX IF NOT EXISTS idx_casino_rewards_user_id ON casino_rewards(user_id);
+CREATE INDEX IF NOT EXISTS idx_casino_history_user_id ON casino_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_casino_history_created_at ON casino_history(created_at);

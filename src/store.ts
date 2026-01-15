@@ -25,8 +25,30 @@ export interface LogEntry {
     id: string;
     message: string;
     timestamp: string; // ISO string
-    type: 'activity' | 'purchase' | 'timeline_add' | 'timeline_remove' | 'other';
+    type: 'activity' | 'purchase' | 'timeline_add' | 'timeline_remove' | 'casino' | 'other';
     pointsChange?: number;
+}
+
+export interface CasinoReward {
+    id: string;
+    name: string;
+    image: string;
+    minRoll: number; // Minimum dice roll to win this reward (2-12 for two dice)
+    cost: number; // Points cost to roll for this reward
+    description?: string;
+}
+
+export interface CasinoGameHistory {
+    id: string;
+    game: 'dice';
+    dice1: number;
+    dice2: number;
+    total: number;
+    cost: number;
+    won: boolean;
+    rewardId?: string;
+    rewardName?: string;
+    timestamp: string;
 }
 
 // Point values for timeline entries
@@ -40,6 +62,8 @@ export interface AppData {
     purchaseHistory: { itemId: string; itemName: string; price: number; date: string }[];
     timelineEntries: TimelineEntry[];
     logs: LogEntry[];
+    casinoRewards: CasinoReward[];
+    casinoHistory: CasinoGameHistory[];
 }
 
 const STORAGE_KEY = 'time-auditor-data';
@@ -61,6 +85,12 @@ const defaultData: AppData = {
     purchaseHistory: [],
     timelineEntries: [],
     logs: [],
+    casinoRewards: [
+        { id: '1', name: 'Jackpot!', image: '💎', minRoll: 12, cost: 1, description: 'Roll double 6 to win!' },
+        { id: '2', name: 'Lucky Prize', image: '🍀', minRoll: 10, cost: 0.5, description: 'Roll 10+ to win' },
+        { id: '3', name: 'Small Treat', image: '🎁', minRoll: 8, cost: 0.25, description: 'Roll 8+ to win' },
+    ],
+    casinoHistory: [],
 };
 
 export function loadData(): AppData {
