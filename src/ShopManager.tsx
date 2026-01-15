@@ -2,9 +2,8 @@ import { useState, useRef } from 'react';
 import { Plus, Edit2, Trash2, Save, X, Settings, Download, Upload } from 'lucide-react';
 import { useData } from './DataContext';
 import type { ShopItem } from './store';
+import { EmojiPicker } from './EmojiPicker';
 
-// Common emoji options for shop items
-const EMOJI_OPTIONS = ['☕', '🎮', '🎬', '🍰', '🍕', '📚', '🎵', '🏖️', '🎁', '💤', '🍿', '🎨', '🏃', '🎯', '🌟', '💪'];
 
 export function ShopManager() {
     const { data, addShopItem, updateShopItem, deleteShopItem, exportData, importData } = useData();
@@ -135,18 +134,10 @@ export function ShopManager() {
                         />
                         <div>
                             <label className="block text-sm text-[var(--color-text-muted)] mb-2">Choose Icon</label>
-                            <div className="flex flex-wrap gap-2">
-                                {EMOJI_OPTIONS.map(emoji => (
-                                    <button
-                                        key={emoji}
-                                        type="button"
-                                        onClick={() => setForm({ ...form, image: emoji })}
-                                        className={`text-2xl p-2 rounded-lg transition-all ${form.image === emoji ? 'bg-[var(--color-highlight)] scale-110' : 'bg-[var(--color-surface)] hover:bg-[var(--color-accent)]'}`}
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
+                            <EmojiPicker
+                                value={form.image}
+                                onChange={(emoji) => setForm({ ...form, image: emoji })}
+                            />
                         </div>
                         <div>
                             <label className="block text-sm text-[var(--color-text-muted)] mb-2">Price (points)</label>
@@ -186,18 +177,10 @@ export function ShopManager() {
                                 />
                                 <div>
                                     <label className="block text-sm text-[var(--color-text-muted)] mb-2">Choose Icon</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {EMOJI_OPTIONS.map(emoji => (
-                                            <button
-                                                key={emoji}
-                                                type="button"
-                                                onClick={() => setForm({ ...form, image: emoji })}
-                                                className={`text-2xl p-2 rounded-lg transition-all ${form.image === emoji ? 'bg-[var(--color-highlight)] scale-110' : 'bg-[var(--color-surface)] hover:bg-[var(--color-accent)]'}`}
-                                            >
-                                                {emoji}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    <EmojiPicker
+                                        value={form.image}
+                                        onChange={(emoji) => setForm({ ...form, image: emoji })}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm text-[var(--color-text-muted)] mb-2">Price</label>

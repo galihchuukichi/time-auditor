@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { Plus, Edit2, Trash2, Save, X, Trophy, Dice6 } from 'lucide-react';
 import { useData } from './DataContext';
 import type { CasinoReward } from './store';
-
-// Common emoji options for casino rewards
-const EMOJI_OPTIONS = ['🍀', '🎁', '🏆', '💎', '⭐', '🌟', '🎯', '🎪', '🎠', '🎡', '🍭', '🍩', '🧁', '🍪', '🎂', '🍫'];
+import { EmojiPicker } from './EmojiPicker';
 
 export function CasinoManager() {
     const { data, addCasinoReward, updateCasinoReward, deleteCasinoReward } = useData();
@@ -147,21 +145,10 @@ export function CasinoManager() {
                         <label className="block text-sm text-[var(--color-text-muted)] mb-1">
                             Emoji Icon
                         </label>
-                        <div className="flex flex-wrap gap-2">
-                            {EMOJI_OPTIONS.map((emoji) => (
-                                <button
-                                    key={emoji}
-                                    type="button"
-                                    onClick={() => setNewImage(emoji)}
-                                    className={`w-10 h-10 text-xl rounded-lg border transition-all ${newImage === emoji
-                                            ? 'border-[var(--color-highlight)] bg-[var(--color-highlight)]/20'
-                                            : 'border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
-                                        }`}
-                                >
-                                    {emoji}
-                                </button>
-                            ))}
-                        </div>
+                        <EmojiPicker
+                            value={newImage}
+                            onChange={(emoji) => setNewImage(emoji)}
+                        />
                     </div>
 
                     <button
@@ -232,20 +219,11 @@ export function CasinoManager() {
                                                     className="w-full"
                                                 />
                                             </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {EMOJI_OPTIONS.map((emoji) => (
-                                                    <button
-                                                        key={emoji}
-                                                        type="button"
-                                                        onClick={() => setEditImage(emoji)}
-                                                        className={`w-8 h-8 text-lg rounded border transition-all ${editImage === emoji
-                                                                ? 'border-[var(--color-highlight)] bg-[var(--color-highlight)]/20'
-                                                                : 'border-[var(--color-border)]'
-                                                            }`}
-                                                    >
-                                                        {emoji}
-                                                    </button>
-                                                ))}
+                                            <div className="mt-2">
+                                                <EmojiPicker
+                                                    value={editImage}
+                                                    onChange={(emoji) => setEditImage(emoji)}
+                                                />
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={() => handleUpdate(reward.id)} className="btn btn-success btn-sm">
