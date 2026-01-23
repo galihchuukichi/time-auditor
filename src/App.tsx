@@ -9,6 +9,7 @@ import { ShopManager } from './ShopManager';
 import { Casino } from './Casino';
 import { CasinoManager } from './CasinoManager';
 import { Settings } from './Settings';
+import { CharacterDisplay } from './CharacterDisplay';
 
 type Tab = 'dashboard' | 'activities' | 'shop' | 'manager' | 'casino' | 'casino-manager' | 'settings';
 
@@ -174,6 +175,9 @@ function AppContent() {
 
       {/* Mobile Bottom Navigation */}
       <MobileNav activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* Global Character Display */}
+      <CharacterDisplay />
     </div>
   );
 }

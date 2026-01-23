@@ -215,6 +215,7 @@ interface DataContextType {
     // Backup
     exportData: () => void;
     importData: (jsonString: string) => boolean;
+    setData: React.Dispatch<React.SetStateAction<AppData>>;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -752,6 +753,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 casinoRewards: parsed.casinoRewards || [],
                 casinoHistory: parsed.casinoHistory || [],
                 inventory: parsed.inventory || [],
+                selectedCharacterId: parsed.selectedCharacterId || null,
             };
 
             setData(newData);
@@ -793,6 +795,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 tradeUp,
                 exportData,
                 importData,
+                setData,
             }}
         >
             {children}

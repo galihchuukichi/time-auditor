@@ -77,6 +77,7 @@ export interface AppData {
     casinoHistory: CasinoGameHistory[];
     inventory: InventoryItem[];
     lastDailyRefresh?: string; // Optional for backward compatibility
+    selectedCharacterId: string | null;
 }
 
 const STORAGE_KEY = 'time-auditor-data';
@@ -107,6 +108,7 @@ const defaultData: AppData = {
     casinoHistory: [],
     inventory: [],
     lastDailyRefresh: '',
+    selectedCharacterId: null,
 };
 
 export function loadData(): AppData {
@@ -122,6 +124,9 @@ export function loadData(): AppData {
             // Ensure currentPoints is a valid number
             if (typeof loadedData.currentPoints !== 'number' || isNaN(loadedData.currentPoints)) {
                 loadedData.currentPoints = 0;
+            }
+            if (loadedData.selectedCharacterId === undefined) {
+                loadedData.selectedCharacterId = null;
             }
             return loadedData;
         }
