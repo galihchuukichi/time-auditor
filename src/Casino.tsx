@@ -2,7 +2,34 @@ import { useState, useCallback } from 'react';
 import { Coins, History, Package, ArrowUpCircle, X, Trophy, Sparkles } from 'lucide-react';
 import { useData } from './DataContext';
 import { getLegendaryAuraClass, type InventoryItem } from './store';
+
 import { GachaSpinner } from './GachaSpinner';
+
+// Helper component for the exclusive animation
+const PremiumGlow = ({ children, colorRGB, className = "" }: { children: React.ReactNode, colorRGB: string, className?: string }) => {
+    return (
+        <div
+            className={`rounded-lg p-2 text-center transition-all duration-200 relative overflow-hidden ${className}`}
+            style={{
+                background: `linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) border-box padding-box, linear-gradient(135deg, rgb(${colorRGB}), rgb(0, 0, 0), rgb(${colorRGB})) border-box rgb(0, 0, 0)`,
+                border: '1px solid transparent',
+                boxShadow: `rgba(${colorRGB}, 0.4) 0px 0px 12px, rgba(${colorRGB}, 0.2) 0px 1px 0px inset`
+            }}
+        >
+            <div className="relative z-10 w-full h-full">
+                {children}
+            </div>
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    background: `linear-gradient(45deg, transparent 20%, rgba(${colorRGB}, 0.3) 50%, transparent 80%)`,
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer-premium 2.5s ease-in-out infinite'
+                }}
+            ></div>
+        </div>
+    );
+};
 
 export function Casino() {
     const { data, playGacha, tradeUp } = useData();
@@ -231,113 +258,72 @@ export function Casino() {
                             const isLegendary = item.tier === 1;
                             const isRare = item.tier === 2;
                             const isUncommon = item.tier === 3;
-                            const legendaryAura = isLegendary ? getLegendaryAuraClass(item.name) : null;
 
-                            // Dynamic styles based on tier
-                            let styles = {
-                                border: 'border-gray-700/50',
-                                shadow: 'shadow-black/50',
-                                accent: 'bg-gray-500',
-                                text: 'text-gray-400',
-                                label: 'Common',
-                                bg: 'bg-gray-900'
-                            };
+                            // Colors
+                            const blueRGB = "59, 130, 246";   // Uncommon
+                            const purpleRGB = "168, 85, 247"; // Rare
+                            const goldRGB = "255, 215, 0";    // Legendary (Gold)
 
+                            // Legendary Item: Entire card wrapped in Gold PremiumGlow
                             if (isLegendary) {
-                                styles = {
-                                    border: 'border-yellow-500/80',
-                                    shadow: 'shadow-yellow-500/20',
-                                    accent: 'bg-yellow-500',
-                                    text: 'text-yellow-400',
-                                    label: 'Legendary',
-                                    bg: 'bg-yellow-950/30'
-                                };
-                            } else if (isRare) {
-                                styles = {
-                                    border: 'border-purple-500/60',
-                                    shadow: 'shadow-purple-500/20',
-                                    accent: 'bg-purple-500',
-                                    text: 'text-purple-400',
-                                    label: 'Rare',
-                                    bg: 'bg-purple-950/30'
-                                };
-                            } else if (isUncommon) {
-                                styles = {
-                                    border: 'border-blue-500/60',
-                                    shadow: 'shadow-blue-500/20',
-                                    accent: 'bg-blue-500',
-                                    text: 'text-blue-400',
-                                    label: 'Uncommon',
-                                    bg: 'bg-blue-950/30'
-                                };
+                                return (
+                                    <PremiumGlow
+                                        key={item.id}
+                                        colorRGB={goldRGB}
+                                        className="group aspect-square cursor-pointer hover:scale-[1.02] hover:z-10 !p-0"
+                                    >
+                                        <div className="w-full h-full relative">
+                                            <div className="absolute inset-0 z-0 p-2">
+                                                {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
+                                                    <img src={item.image} alt={item.name} className="w-full h-full object-contain drop-shadow-2xl" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center opacity-30"><span className="text-5xl">{item.image}</span></div>
+                                                )}
+                                            </div>
+
+                                            <div className="absolute inset-x-0 bottom-0 z-20 p-2 flex flex-col justify-end items-center">
+                                                <h4 className="text-sm font-bold text-[#ffd700] leading-tight truncate drop-shadow-sm bg-black/50 px-2 rounded backdrop-blur-sm">
+                                                    {item.name}
+                                                </h4>
+                                            </div>
+                                        </div>
+                                    </PremiumGlow>
+                                );
                             }
 
+                            // Other Items: Standard Card
                             return (
-                                <div
-                                    key={item.id}
-                                    className={`
-                                        group relative aspect-square rounded-xl overflow-hidden cursor-pointer
-                                        border ${styles.border} ${styles.bg}
-                                        transition-all duration-300 hover:scale-[1.02] hover:z-10 hover:shadow-xl hover:${styles.shadow}
-                                    `}
-                                >
-                                    {/* Background Image/Aura Layer - Full Bleed */}
+                                <div key={item.id} className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer border border-gray-700/50 bg-gray-900 transition-all duration-300 hover:scale-[1.02] hover:z-10 hover:shadow-xl hover:shadow-black/50">
+                                    {/* Image */}
                                     <div className="absolute inset-0 z-0 bg-gray-950">
-                                        {isLegendary && legendaryAura ? (
-                                            <div className="absolute inset-0 w-full h-full overflow-hidden">
-                                                <div className="fluid-aura-container">
-                                                    <div className={`fluid-aura-layer ${legendaryAura}`}></div>
-                                                    <div className={`fluid-aura-layer ${legendaryAura}`}></div>
-                                                    <div className="fluid-aura-layer"></div>
-                                                </div>
-                                            </div>
-                                        ) : null}
-
                                         {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
-                                            <img
-                                                src={item.image}
-                                                alt={item.name}
-                                                className={`w-full h-full transition-transform duration-700 group-hover:scale-110 
-                                                    ${isLegendary ? 'object-contain p-2 relative z-10 drop-shadow-2xl' : 'object-cover'}
-                                                `}
-                                            />
+                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center opacity-30">
-                                                <span className="text-5xl select-none">{item.image}</span>
-                                            </div>
+                                            <div className="w-full h-full flex items-center justify-center opacity-30"><span className="text-5xl">{item.image}</span></div>
                                         )}
                                     </div>
-
-                                    {/* Shimmer Effect for Legendaries */}
-                                    {isLegendary && (
-                                        <div className="absolute inset-0 z-10 animate-shimmer-premium pointer-events-none opacity-20" style={{
-                                            background: 'linear-gradient(45deg, transparent 40%, rgba(255, 215, 0, 0.6) 50%, transparent 60%)',
-                                        }}></div>
-                                    )}
-
-                                    {/* Gradient Overlay for Text Readability */}
                                     <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-70 group-hover:opacity-85 transition-opacity duration-300"></div>
 
-                                    {/* Content Layer (Bottom) */}
-                                    <div className="absolute inset-x-0 bottom-0 z-20 p-3 flex flex-col justify-end">
-                                        <div className="transform translate-y-1 transition-transform duration-300 group-hover:translate-y-0">
-                                            {/* Tier Label */}
-                                            <div className="flex items-center gap-1.5 mb-1 opacity-90">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${styles.accent} shadow-[0_0_6px_currentColor]`}></div>
-                                                <span className={`text-[10px] uppercase font-bold tracking-wider leading-none ${styles.text}`}>
-                                                    {styles.label}
-                                                </span>
-                                            </div>
-
-                                            {/* Item Name */}
-                                            <h4 className="text-sm font-bold text-white leading-tight truncate drop-shadow-sm group-hover:text-white/100">
-                                                {item.name}
-                                            </h4>
+                                    {/* Content */}
+                                    <div className="absolute inset-x-0 bottom-0 z-20 p-2 flex flex-col justify-end">
+                                        <div className="transform translate-y-1 transition-transform duration-300 group-hover:translate-y-0 text-center">
+                                            {/* Name with conditional styling */}
+                                            {isUncommon ? (
+                                                <PremiumGlow colorRGB={blueRGB} className="mb-0 !p-1">
+                                                    <h4 className="text-[10px] font-bold text-blue-400 leading-tight truncate uppercase tracking-wide">{item.name}</h4>
+                                                </PremiumGlow>
+                                            ) : isRare ? (
+                                                <PremiumGlow colorRGB={purpleRGB} className="mb-0 !p-1">
+                                                    <h4 className="text-[10px] font-bold text-purple-400 leading-tight truncate uppercase tracking-wide">{item.name}</h4>
+                                                </PremiumGlow>
+                                            ) : (
+                                                // Common
+                                                <h4 className="text-sm font-medium text-gray-300 leading-tight truncate drop-shadow-sm group-hover:text-white pb-1">
+                                                    {item.name}
+                                                </h4>
+                                            )}
                                         </div>
                                     </div>
-
-                                    {/* Hover Border Glow */}
-                                    <div className={`absolute inset-0 border-2 ${styles.border.replace('border-', 'border-')} opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl pointer-events-none`}></div>
                                 </div>
                             );
                         })}
