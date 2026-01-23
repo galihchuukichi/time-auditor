@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { Coins, Trophy, History, Package, ArrowUpCircle } from 'lucide-react';
+import { Coins, History, Package, ArrowUpCircle } from 'lucide-react';
 import { useData } from './DataContext';
-import type { CasinoReward, InventoryItem } from './store';
+import type { InventoryItem } from './store';
 import { GachaSpinner } from './GachaSpinner';
 
 export function Casino() {
@@ -87,7 +87,13 @@ export function Casino() {
                     {!isSpinning && winningResult && (
                         <div className="text-center animate-bounce-in">
                             <p className="text-lg font-bold text-[var(--color-success)]">You Won!</p>
-                            <div className="text-4xl my-2">{winningResult.reward.image}</div>
+                            <div className="w-32 h-32 my-2 relative">
+                                <img
+                                    src={winningResult.reward.image}
+                                    alt={winningResult.reward.name}
+                                    className="w-full h-full object-contain drop-shadow-lg"
+                                />
+                            </div>
                             <p className="font-semibold">{winningResult.reward.name}</p>
                             <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase
                                 ${winningResult.tier === 1 ? 'bg-yellow-900 text-yellow-400' : ''}
@@ -98,6 +104,7 @@ export function Casino() {
                                 Tier {winningResult.tier}
                             </span>
                         </div>
+
                     )}
 
                     <button
@@ -211,9 +218,14 @@ export function Casino() {
                                     ${item.tier === 4 ? 'border-gray-500/30 hover:border-gray-400' : ''}
                                     transition-colors group
                                 `}
-                                title={`${item.name} (Tier ${item.tier})`}
                             >
-                                <span className="text-3xl mb-1">{item.image}</span>
+                                <div className="w-12 h-12 mb-1 flex items-center justify-center">
+                                    {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
+                                        <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
+                                    ) : (
+                                        <span className="text-3xl">{item.image}</span>
+                                    )}
+                                </div>
                                 <span className="text-[10px] w-full text-center truncate font-medium">{item.name}</span>
                                 <div className={`
                                     absolute top-1 right-1 w-2 h-2 rounded-full

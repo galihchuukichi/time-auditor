@@ -20,6 +20,83 @@ import {
     syncDataToSupabase,
 } from './supabase';
 
+const TIER_IMAGES = {
+    t4: Array.from({ length: 15 }, (_, i) => `/tier4/tier4 (${i + 1}).jpg`), // Common
+    t3: Array.from({ length: 15 }, (_, i) => `/tier3/tier3 (${i + 1}).jpg`), // Uncommon
+    t2: Array.from({ length: 15 }, (_, i) => `/tier2/tier2 (${i + 1}).jpg`), // Rare
+    t1: Array.from({ length: 15 }, (_, i) => `/tier1/tier1 (${i + 1}).jpg`), // Legendary (Trade up)
+};
+
+function getRandomItems<T>(arr: T[], count: number): T[] {
+    const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+}
+
+function generateDailyRewards(): CasinoReward[] {
+    const rewards: CasinoReward[] = [];
+
+    // Daily Pool Composition: 10 items total
+    // 2 Rare (T2), 3 Uncommon (T3), 5 Common (T4)
+    // This allows for variety while keeping the "Menu" consistent with rarity.
+
+    // Tier 2 (Rare)
+    const t2Images = getRandomItems(TIER_IMAGES.t2, 2);
+    t2Images.forEach((img, idx) => {
+        rewards.push({
+            id: generateId(),
+            name: `Rare Weapon ${idx + 1}`,
+            image: img,
+            tier: 2,
+            minRoll: 0, cost: 0, // Legacy/Unused
+            description: 'Rare Prize'
+        });
+    });
+
+    // Tier 3 (Uncommon)
+    const t3Images = getRandomItems(TIER_IMAGES.t3, 3);
+    t3Images.forEach((img, idx) => {
+        rewards.push({
+            id: generateId(),
+            name: `Uncommon Weapon ${idx + 1}`,
+            image: img,
+            tier: 3,
+            minRoll: 0, cost: 0,
+            description: 'Uncommon Prize'
+        });
+    });
+
+    // Tier 4 (Common)
+    const t4Images = getRandomItems(TIER_IMAGES.t4, 5);
+    t4Images.forEach((img, idx) => {
+        rewards.push({
+            id: generateId(),
+            name: `Common Weapon ${idx + 1}`,
+            image: img,
+            tier: 4,
+            minRoll: 0, cost: 0,
+            description: 'Common Prize'
+        });
+    });
+
+    // Tier 1 (Legendary - Trade Up Only)
+    // We add them to the pool so they exist for Trade Up, but they retain 0% drop rate in playGacha
+    const t1Images = getRandomItems(TIER_IMAGES.t1, 1);
+    t1Images.forEach((img, idx) => {
+        rewards.push({
+            id: generateId(),
+            name: `Legendary Weapon ${idx + 1}`,
+            image: img,
+            tier: 1,
+            minRoll: 0, cost: 0,
+            description: 'Legendary Prize'
+        });
+    });
+
+    return rewards;
+}
+
+
+
 interface DataContextType {
     data: AppData;
     isLoading: boolean;
@@ -62,23 +139,53 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // Load data from Supabase on mount if configured
     useEffect(() => {
         async function initData() {
+            let currentData: AppData = loadData(); // Start with local
+
             if (isSupabaseConfigured()) {
                 setIsCloudConnected(true);
                 try {
                     const cloudData = await fetchDataFromSupabase();
                     if (cloudData) {
-                        // Use cloud data (cloud takes priority)
-                        const safeCloudData = { ...cloudData, inventory: cloudData.inventory || [] }; // Safety backfill
-                        setData(safeCloudData);
-                        saveData(safeCloudData); // Also save to localStorage as backup
+                        currentData = { ...cloudData, inventory: cloudData.inventory || [] }; // Cloud takes priority
                     }
                 } catch (error) {
                     console.error('Failed to load from Supabase:', error);
                 }
             }
-            // Mark initialization as complete AFTER setting cloud data
+
+            // check daily refresh
+            const today = new Date().toISOString().slice(0, 10);
+            if (currentData.lastDailyRefresh !== today) {
+                console.log("Refreshing Daily Rewards...");
+                const newRewards = generateDailyRewards();
+                currentData.casinoRewards = newRewards;
+                currentData.lastDailyRefresh = today;
+
+                // If cloud connected, we verify if the cloud already has TODAY'S rewards?
+                // Actually, if we just generated new ones locally but cloud has old ones, we overwrite.
+                // But if multiple devices? 
+                // Simple version: Client updates it. Winner takes all.
+            }
+
+            // Backfill/Sanity check if something went wrong and we have NO rewards
+            if (!currentData.casinoRewards || currentData.casinoRewards.length === 0) {
+                currentData.casinoRewards = generateDailyRewards();
+                currentData.lastDailyRefresh = today;
+            }
+
+            setData(currentData);
+            saveData(currentData); // Save to local
+
+            // Mark initialization as complete
             hasInitializedRef.current = true;
             setIsLoading(false);
+
+            // If we updated daily rewards, sync to Supabase (if connected)
+            if (isSupabaseConfigured() && currentData.lastDailyRefresh === today) {
+                // We might want to sync the whole object or just rewards. 
+                // syncDataToSupabase does the whole thing.
+                syncDataToSupabase(currentData);
+            }
         }
         initData();
     }, []);
@@ -86,8 +193,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // Ensure state validity on mount for local data too
     useEffect(() => {
         setData(prev => {
+            let updates: Partial<AppData> = {};
+
+            // Backfill inventory
             if (!prev.inventory) {
-                return { ...prev, inventory: [] };
+                updates.inventory = [];
+            }
+
+            // Backfill casino rewards if completely empty (to help user get started with Gacha)
+            // But only if we are absolutely sure this is what we want.
+            // Actually, let's just make sure the ARRAY exists.
+            if (!prev.casinoRewards) {
+                updates.casinoRewards = [];
+            } else if (prev.casinoRewards.length === 0) {
+                // Optional: Restore defaults if empty? 
+                // Maybe better to leave it empty but let the UI handle it (which we did).
+                // However, "Backfilling defaults" helps the immediate "Why is it empty?" experience.
+                // Let's inject defaults if it's empty to be helpful, as the user seems to want it "fixed".
+                updates.casinoRewards = [
+                    { id: '1', name: 'Jackpot!', image: '💎', tier: 1, minRoll: 12, cost: 1, description: 'Legendary Prize' },
+                    { id: '2', name: 'Lucky Prize', image: '🍀', tier: 2, minRoll: 10, cost: 0.5, description: 'Rare Prize' },
+                    { id: '3', name: 'Small Treat', image: '🎁', tier: 3, minRoll: 8, cost: 0.25, description: 'Uncommon Prize' },
+                    { id: '4', name: 'Consolation', image: '🍬', tier: 4, minRoll: 6, cost: 0.1, description: 'Common Prize' },
+                ];
+            }
+
+            if (Object.keys(updates).length > 0) {
+                return { ...prev, ...updates };
             }
             return prev;
         });

@@ -76,6 +76,7 @@ export interface AppData {
     casinoRewards: CasinoReward[];
     casinoHistory: CasinoGameHistory[];
     inventory: InventoryItem[];
+    lastDailyRefresh?: string; // Optional for backward compatibility
 }
 
 const STORAGE_KEY = 'time-auditor-data';
@@ -105,6 +106,7 @@ const defaultData: AppData = {
     ],
     casinoHistory: [],
     inventory: [],
+    lastDailyRefresh: '',
 };
 
 export function loadData(): AppData {
