@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Trophy, Dice6 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Trophy } from 'lucide-react';
 import { useData } from './DataContext';
 import type { CasinoReward } from './store';
 import { EmojiPicker } from './EmojiPicker';
@@ -8,14 +8,13 @@ export function CasinoManager() {
     const { data, addCasinoReward, updateCasinoReward, deleteCasinoReward } = useData();
     const [newName, setNewName] = useState('');
     const [newImage, setNewImage] = useState('🎁');
-    const [newMinRoll, setNewMinRoll] = useState(10);
-    const [newCost, setNewCost] = useState(1);
+    const [newTier, setNewTier] = useState<1 | 2 | 3 | 4>(4);
     const [newDescription, setNewDescription] = useState('');
+
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const [editImage, setEditImage] = useState('');
-    const [editMinRoll, setEditMinRoll] = useState(10);
-    const [editCost, setEditCost] = useState(1);
+    const [editTier, setEditTier] = useState<1 | 2 | 3 | 4>(4);
     const [editDescription, setEditDescription] = useState('');
 
     const handleAdd = () => {
@@ -23,14 +22,14 @@ export function CasinoManager() {
         addCasinoReward({
             name: newName.trim(),
             image: newImage,
-            minRoll: newMinRoll,
-            cost: newCost,
+            tier: newTier,
+            minRoll: 0, // Deprecated
+            cost: 0, // Deprecated
             description: newDescription.trim() || undefined,
         });
         setNewName('');
         setNewImage('🎁');
-        setNewMinRoll(10);
-        setNewCost(1);
+        setNewTier(4);
         setNewDescription('');
     };
 
@@ -39,8 +38,7 @@ export function CasinoManager() {
         updateCasinoReward(id, {
             name: editName.trim(),
             image: editImage,
-            minRoll: editMinRoll,
-            cost: editCost,
+            tier: editTier,
             description: editDescription.trim() || undefined,
         });
         setEditingId(null);
@@ -50,13 +48,28 @@ export function CasinoManager() {
         setEditingId(reward.id);
         setEditName(reward.name);
         setEditImage(reward.image);
-        setEditMinRoll(reward.minRoll);
-        setEditCost(reward.cost);
+        setEditTier(reward.tier || 4);
         setEditDescription(reward.description || '');
     };
 
     const cancelEdit = () => {
         setEditingId(null);
+    };
+
+    const TierBadge = ({ tier }: { tier: number }) => {
+        const colors = {
+            1: 'bg-yellow-900 text-yellow-400 border-yellow-400',
+            2: 'bg-purple-900 text-purple-400 border-purple-400',
+            3: 'bg-blue-900 text-blue-400 border-blue-400',
+            4: 'bg-gray-700 text-gray-300 border-gray-400',
+        };
+        const labels = { 1: 'Legendary', 2: 'Rare', 3: 'Uncommon', 4: 'Common' };
+
+        return (
+            <span className={`px-2 py-0.5 rounded text-xs border ${colors[tier as keyof typeof colors]}`}>
+                {labels[tier as keyof typeof labels]} (T{tier})
+            </span>
+        );
     };
 
     return (
@@ -68,7 +81,7 @@ export function CasinoManager() {
                     Casino Rewards Manager
                 </h2>
                 <p className="text-[var(--color-text-muted)] text-sm mt-1">
-                    Configure rewards for the dice roll game (2 dice, total 2-12)
+                    Configure Gacha rewards. Assign tiers (1=Legendary, 4=Common).
                 </p>
             </div>
 
@@ -94,51 +107,32 @@ export function CasinoManager() {
                         </div>
                         <div>
                             <label className="block text-sm text-[var(--color-text-muted)] mb-1">
-                                Cost to Play (points)
+                                Tier (Rarity)
                             </label>
-                            <input
-                                type="number"
-                                min={0.01}
-                                step={0.01}
-                                value={newCost}
-                                onChange={(e) => setNewCost(Math.max(0.01, parseFloat(e.target.value) || 0.01))}
-                                className="w-full"
-                            />
+                            <select
+                                value={newTier}
+                                onChange={(e) => setNewTier(Number(e.target.value) as 1 | 2 | 3 | 4)}
+                                className="w-full p-2 rounded border bg-[var(--color-bg-primary)] border-[var(--color-border)]"
+                            >
+                                <option value={4}>Tier 4 (Common - 50%)</option>
+                                <option value={3}>Tier 3 (Uncommon - 37%)</option>
+                                <option value={2}>Tier 2 (Rare - 13%)</option>
+                                <option value={1}>Tier 1 (Legendary - Trade-Up Only)</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm text-[var(--color-text-muted)] mb-1">
-                                Min Roll to Win (2-12)
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <Dice6 className="w-5 h-5 text-[var(--color-text-muted)]" />
-                                <input
-                                    type="number"
-                                    min={2}
-                                    max={12}
-                                    value={newMinRoll}
-                                    onChange={(e) => setNewMinRoll(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
-                                    className="w-20"
-                                />
-                                <span className="text-sm text-[var(--color-text-muted)]">
-                                    (Roll ≥{newMinRoll} wins)
-                                </span>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm text-[var(--color-text-muted)] mb-1">
-                                Description (optional)
-                            </label>
-                            <input
-                                type="text"
-                                value={newDescription}
-                                onChange={(e) => setNewDescription(e.target.value)}
-                                placeholder="e.g., Roll double 6 to win!"
-                                className="w-full"
-                            />
-                        </div>
+                    <div>
+                        <label className="block text-sm text-[var(--color-text-muted)] mb-1">
+                            Description (optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={newDescription}
+                            onChange={(e) => setNewDescription(e.target.value)}
+                            placeholder="e.g., Shiny collectible"
+                            className="w-full"
+                        />
                     </div>
 
                     <div>
@@ -170,13 +164,13 @@ export function CasinoManager() {
 
                 {data.casinoRewards.length === 0 ? (
                     <p className="text-[var(--color-text-muted)] text-center py-8">
-                        No rewards configured yet. Add your first reward above!
+                        No rewards configured yet.
                     </p>
                 ) : (
                     <div className="space-y-3">
                         {data.casinoRewards
                             .slice()
-                            .sort((a, b) => b.minRoll - a.minRoll)
+                            .sort((a, b) => (a.tier || 4) - (b.tier || 4))
                             .map((reward) => (
                                 <div
                                     key={reward.id}
@@ -185,7 +179,7 @@ export function CasinoManager() {
                                     {editingId === reward.id ? (
                                         // Edit Mode
                                         <div className="flex-1 space-y-3">
-                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                                 <input
                                                     type="text"
                                                     value={editName}
@@ -193,24 +187,16 @@ export function CasinoManager() {
                                                     placeholder="Name"
                                                     className="w-full"
                                                 />
-                                                <input
-                                                    type="number"
-                                                    min={2}
-                                                    max={12}
-                                                    value={editMinRoll}
-                                                    onChange={(e) => setEditMinRoll(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
-                                                    className="w-full"
-                                                    placeholder="Min Roll"
-                                                />
-                                                <input
-                                                    type="number"
-                                                    min={0.01}
-                                                    step={0.01}
-                                                    value={editCost}
-                                                    onChange={(e) => setEditCost(Math.max(0.01, parseFloat(e.target.value) || 0.01))}
-                                                    className="w-full"
-                                                    placeholder="Cost"
-                                                />
+                                                <select
+                                                    value={editTier}
+                                                    onChange={(e) => setEditTier(Number(e.target.value) as 1 | 2 | 3 | 4)}
+                                                    className="w-full p-2 rounded border bg-[var(--color-bg-primary)] border-[var(--color-border)]"
+                                                >
+                                                    <option value={4}>Tier 4 (Common)</option>
+                                                    <option value={3}>Tier 3 (Uncommon)</option>
+                                                    <option value={2}>Tier 2 (Rare)</option>
+                                                    <option value={1}>Tier 1 (Legendary)</option>
+                                                </select>
                                                 <input
                                                     type="text"
                                                     value={editDescription}
@@ -241,17 +227,12 @@ export function CasinoManager() {
                                         <>
                                             <span className="text-3xl">{reward.image}</span>
                                             <div className="flex-1">
-                                                <p className="font-medium">{reward.name}</p>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <p className="font-medium">{reward.name}</p>
+                                                    <TierBadge tier={reward.tier || 4} />
+                                                </div>
                                                 <p className="text-sm text-[var(--color-text-muted)]">
-                                                    {reward.description || `Roll ${reward.minRoll}+ to win`}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="badge badge-planning">
-                                                    Roll ≥{reward.minRoll}
-                                                </span>
-                                                <p className="text-xs text-[var(--color-highlight)] mt-1">
-                                                    Cost: {reward.cost} pts
+                                                    {reward.description || 'No description'}
                                                 </p>
                                             </div>
                                             <div className="flex gap-2">
@@ -276,15 +257,13 @@ export function CasinoManager() {
                 )}
             </div>
 
-            {/* Info */}
             <div className="card bg-[var(--color-bg-secondary)]">
-                <h4 className="font-semibold mb-2">🎲🎲 How it works (Monopoly-style)</h4>
+                <h4 className="font-semibold mb-2">📊 Gacha Probabilities</h4>
                 <ul className="text-sm text-[var(--color-text-muted)] space-y-1">
-                    <li>• Players roll TWO dice (range: 2-12, like Monopoly)</li>
-                    <li>• Each reward has a different cost to play</li>
-                    <li>• Select a reward, then roll to try to win it</li>
-                    <li>• Higher minRoll = harder to win = more valuable reward</li>
-                    <li>• Probability: 12 (2.8%), 10+ (16.7%), 8+ (41.7%), 6+ (72.2%)</li>
+                    <li>• Tier 4 (Common): 50%</li>
+                    <li>• Tier 3 (Uncommon): 37%</li>
+                    <li>• Tier 2 (Rare): 13%</li>
+                    <li>• Tier 1 (Legendary): 0% (Only available via Trade-Up!)</li>
                 </ul>
             </div>
         </div>

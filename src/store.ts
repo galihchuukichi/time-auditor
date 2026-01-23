@@ -25,7 +25,7 @@ export interface LogEntry {
     id: string;
     message: string;
     timestamp: string; // ISO string
-    type: 'activity' | 'purchase' | 'timeline_add' | 'timeline_remove' | 'casino' | 'other';
+    type: 'activity' | 'purchase' | 'timeline_add' | 'timeline_remove' | 'casino' | 'trade_up' | 'other';
     pointsChange?: number;
 }
 
@@ -33,17 +33,18 @@ export interface CasinoReward {
     id: string;
     name: string;
     image: string;
-    minRoll: number; // Minimum dice roll to win this reward (2-12 for two dice)
-    cost: number; // Points cost to roll for this reward
+    tier: 1 | 2 | 3 | 4; // 1=Legendary, 2=Rare, 3=Uncommon, 4=Common
+    minRoll: number; // Kept for backward compatibility or if we switch modes, but Gacha uses probabilities
+    cost: number; // Kept but Gacha has fixed cost
     description?: string;
 }
 
 export interface CasinoGameHistory {
     id: string;
-    game: 'dice';
-    dice1: number;
-    dice2: number;
-    total: number;
+    game: 'dice' | 'gacha';
+    dice1?: number; // Optional now
+    dice2?: number; // Optional now
+    total?: number; // Optional now
     cost: number;
     won: boolean;
     rewardId?: string;
@@ -51,9 +52,19 @@ export interface CasinoGameHistory {
     timestamp: string;
 }
 
+export interface InventoryItem {
+    id: string; // Unique instance ID
+    rewardId: string; // ID of the reward definition
+    name: string;
+    image: string;
+    tier: number;
+    acquiredAt: string;
+}
+
 // Point values for timeline entries
 export const PLANNING_POINTS = 3;
 export const AUDITING_POINTS = 8;
+export const GACHA_COST = 1000;
 
 export interface AppData {
     activities: Activity[];
@@ -64,6 +75,7 @@ export interface AppData {
     logs: LogEntry[];
     casinoRewards: CasinoReward[];
     casinoHistory: CasinoGameHistory[];
+    inventory: InventoryItem[];
 }
 
 const STORAGE_KEY = 'time-auditor-data';
@@ -86,11 +98,13 @@ const defaultData: AppData = {
     timelineEntries: [],
     logs: [],
     casinoRewards: [
-        { id: '1', name: 'Jackpot!', image: '💎', minRoll: 12, cost: 1, description: 'Roll double 6 to win!' },
-        { id: '2', name: 'Lucky Prize', image: '🍀', minRoll: 10, cost: 0.5, description: 'Roll 10+ to win' },
-        { id: '3', name: 'Small Treat', image: '🎁', minRoll: 8, cost: 0.25, description: 'Roll 8+ to win' },
+        { id: '1', name: 'Jackpot!', image: '💎', tier: 1, minRoll: 12, cost: 1, description: 'Legendary Prize' },
+        { id: '2', name: 'Lucky Prize', image: '🍀', tier: 2, minRoll: 10, cost: 0.5, description: 'Rare Prize' },
+        { id: '3', name: 'Small Treat', image: '🎁', tier: 3, minRoll: 8, cost: 0.25, description: 'Uncommon Prize' },
+        { id: '4', name: 'Consolation', image: '🍬', tier: 4, minRoll: 6, cost: 0.1, description: 'Common Prize' },
     ],
     casinoHistory: [],
+    inventory: [],
 };
 
 export function loadData(): AppData {
@@ -98,7 +112,12 @@ export function loadData(): AppData {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
             const parsed = JSON.parse(stored);
-            return { ...defaultData, ...parsed };
+            // Ensure inventory exists for old data
+            const loadedData = { ...defaultData, ...parsed };
+            if (!loadedData.inventory) {
+                loadedData.inventory = [];
+            }
+            return loadedData;
         }
     } catch (e) {
         console.error('Failed to load data:', e);

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { loadData, saveData, generateId, PLANNING_POINTS, AUDITING_POINTS } from './store';
-import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory } from './store';
+import { loadData, saveData, generateId, PLANNING_POINTS, AUDITING_POINTS, GACHA_COST } from './store';
+import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory, InventoryItem } from './store';
 import {
     isSupabaseConfigured,
     fetchDataFromSupabase,
@@ -43,7 +43,8 @@ interface DataContextType {
     addCasinoReward: (reward: Omit<CasinoReward, 'id'>) => void;
     updateCasinoReward: (id: string, updates: Partial<CasinoReward>) => void;
     deleteCasinoReward: (id: string) => void;
-    playCasinoGame: (cost: number) => { dice1: number; dice2: number; total: number; won: boolean; reward?: CasinoReward };
+    playGacha: () => { reward: InventoryItem; won: boolean; tier: number } | null;
+    tradeUp: (targetTier: number) => { success: boolean; message: string; newItem?: InventoryItem };
     // Backup
     exportData: () => void;
     importData: (jsonString: string) => boolean;
@@ -67,8 +68,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     const cloudData = await fetchDataFromSupabase();
                     if (cloudData) {
                         // Use cloud data (cloud takes priority)
-                        setData(cloudData);
-                        saveData(cloudData); // Also save to localStorage as backup
+                        const safeCloudData = { ...cloudData, inventory: cloudData.inventory || [] }; // Safety backfill
+                        setData(safeCloudData);
+                        saveData(safeCloudData); // Also save to localStorage as backup
                     }
                 } catch (error) {
                     console.error('Failed to load from Supabase:', error);
@@ -79,6 +81,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
         }
         initData();
+    }, []);
+
+    // Ensure state validity on mount for local data too
+    useEffect(() => {
+        setData(prev => {
+            if (!prev.inventory) {
+                return { ...prev, inventory: [] };
+            }
+            return prev;
+        });
     }, []);
 
     // Save to localStorage whenever data changes
@@ -323,60 +335,144 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    const playCasinoGame = useCallback((cost: number): { dice1: number; dice2: number; total: number; won: boolean; reward?: CasinoReward } => {
-        const dice1 = Math.floor(Math.random() * 6) + 1; // 1-6
-        const dice2 = Math.floor(Math.random() * 6) + 1; // 1-6
-        const total = dice1 + dice2; // 2-12
-        let won = false;
-        let matchingReward: CasinoReward | undefined;
+    const playGacha = useCallback((): { reward: InventoryItem; won: boolean; tier: number } | null => {
+        if (data.currentPoints < GACHA_COST) return null;
 
-        // Find best reward for this roll (highest minRoll that the player meets)
-        const eligibleRewards = data.casinoRewards.filter(r => total >= r.minRoll);
-        if (eligibleRewards.length > 0) {
-            matchingReward = eligibleRewards.reduce((best, current) =>
-                current.minRoll > best.minRoll ? current : best
-            );
-            won = true;
+        // Probabilities
+        // Tier 2: 13%
+        // Tier 3: 37%
+        // Tier 4: 50%
+        // range 0-100
+        const roll = Math.random() * 100;
+        let tier = 4;
+        if (roll < 13) tier = 2; // 0-12.99
+        else if (roll < 50) tier = 3; // 13-49.99 (37%)
+        else tier = 4; // 50-99.99 (50%)
+
+        // Find rewards of this tier
+        // Note: For trade-up (Tier 1), we don't drop it here.
+        const possibleRewards = data.casinoRewards.filter(r => r.tier === tier);
+
+        let rewardDef: CasinoReward;
+        if (possibleRewards.length === 0) {
+            // Fallback if no rewards of this tier exist, try ANY lower tier (higher number)
+            const lowerRewards = data.casinoRewards.filter(r => r.tier >= tier);
+            if (lowerRewards.length > 0) {
+                rewardDef = lowerRewards[Math.floor(Math.random() * lowerRewards.length)];
+            } else {
+                // Absolute fallback
+                if (data.casinoRewards.length === 0) return null; // No rewards at all
+                rewardDef = data.casinoRewards[Math.floor(Math.random() * data.casinoRewards.length)];
+            }
+        } else {
+            rewardDef = possibleRewards[Math.floor(Math.random() * possibleRewards.length)];
         }
 
-        // Deduct cost and record history
+        const newInventoryItem: InventoryItem = {
+            id: generateId(),
+            rewardId: rewardDef.id,
+            name: rewardDef.name,
+            image: rewardDef.image,
+            tier: rewardDef.tier,
+            acquiredAt: new Date().toISOString()
+        };
+
         const historyEntry: CasinoGameHistory = {
             id: generateId(),
-            game: 'dice',
-            dice1,
-            dice2,
-            total,
-            cost,
-            won,
-            rewardId: matchingReward?.id,
-            rewardName: matchingReward?.name,
+            game: 'gacha',
+            cost: GACHA_COST,
+            won: true,
+            rewardId: rewardDef.id,
+            rewardName: rewardDef.name,
             timestamp: new Date().toISOString(),
         };
 
         const newLog: LogEntry = {
             id: generateId(),
-            message: won
-                ? `🎲 Casino: Rolled ${dice1}+${dice2}=${total}, won "${matchingReward?.name}"!`
-                : `🎲 Casino: Rolled ${dice1}+${dice2}=${total}, no win`,
+            message: `🎰 Gacha: Won ${rewardDef.image} ${rewardDef.name} (Tier ${rewardDef.tier})`,
             timestamp: new Date().toISOString(),
             type: 'casino',
-            pointsChange: -cost,
+            pointsChange: -GACHA_COST,
         };
 
         if (isSupabaseConfigured()) {
             addCasinoGameHistory(historyEntry);
             addLogEntry(newLog);
+            // We are NOT syncing inventory to supabase yet as per plan, only local
         }
 
         setData(prev => ({
             ...prev,
-            currentPoints: prev.currentPoints - cost,
+            currentPoints: prev.currentPoints - GACHA_COST,
             casinoHistory: [historyEntry, ...prev.casinoHistory],
+            inventory: [newInventoryItem, ...prev.inventory],
             logs: [...(prev.logs || []), newLog],
         }));
 
-        return { dice1, dice2, total, won, reward: matchingReward };
-    }, [data.casinoRewards]);
+        return { reward: newInventoryItem, won: true, tier: rewardDef.tier };
+    }, [data.casinoRewards, data.currentPoints]);
+
+    const tradeUp = useCallback((targetTier: number): { success: boolean; message: string; newItem?: InventoryItem } => {
+        // Trade Logic:
+        // 6 T4 -> 1 T3
+        // 10 T3 -> 1 T2
+        // 12 T2 -> 1 T1
+
+        let requiredCount = 0;
+        let sourceTier = targetTier + 1;
+
+        if (targetTier === 3) requiredCount = 6; // uses T4
+        else if (targetTier === 2) requiredCount = 10; // uses T3
+        else if (targetTier === 1) requiredCount = 12; // uses T2
+        else return { success: false, message: "Invalid target tier" };
+
+        const sourceItems = data.inventory.filter(i => i.tier === sourceTier);
+        if (sourceItems.length < requiredCount) {
+            return { success: false, message: `Not enough Tier ${sourceTier} items. Need ${requiredCount}, have ${sourceItems.length}.` };
+        }
+
+        // Check if target tier rewards exist
+        const possibleRewards = data.casinoRewards.filter(r => r.tier === targetTier);
+        if (possibleRewards.length === 0) {
+            return { success: false, message: `No rewards configured for Tier ${targetTier}.` };
+        }
+
+        // Consume items (randomly pick N items to remove)
+        // We Shuffle then slice? Or just pick first N?
+        // Let's just pick the first N for simplicity (FIFO-ish)
+        const itemsToRemove = sourceItems.slice(0, requiredCount);
+        const itemIdsToRemove = new Set(itemsToRemove.map(i => i.id));
+
+        // Generate new item
+        const rewardDef = possibleRewards[Math.floor(Math.random() * possibleRewards.length)];
+        const newItem: InventoryItem = {
+            id: generateId(),
+            rewardId: rewardDef.id,
+            name: rewardDef.name,
+            image: rewardDef.image,
+            tier: rewardDef.tier,
+            acquiredAt: new Date().toISOString()
+        };
+
+        const newLog: LogEntry = {
+            id: generateId(),
+            message: `🔄 Trade-Up: Traded ${requiredCount} Tier ${sourceTier} for ${rewardDef.image} ${rewardDef.name} (Tier ${targetTier})`,
+            timestamp: new Date().toISOString(),
+            type: 'trade_up',
+        };
+
+        if (isSupabaseConfigured()) {
+            addLogEntry(newLog);
+        }
+
+        setData(prev => ({
+            ...prev,
+            inventory: [...prev.inventory.filter(i => !itemIdsToRemove.has(i.id)), newItem],
+            logs: [...(prev.logs || []), newLog],
+        }));
+
+        return { success: true, message: `Successfully traded up for ${newItem.name}!`, newItem };
+    }, [data.inventory, data.casinoRewards]);
 
     // Backup functions
     const exportData = useCallback(() => {
@@ -408,6 +504,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 logs: parsed.logs || [],
                 casinoRewards: parsed.casinoRewards || [],
                 casinoHistory: parsed.casinoHistory || [],
+                inventory: parsed.inventory || [],
             };
 
             setData(newData);
@@ -445,7 +542,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 addCasinoReward,
                 updateCasinoReward,
                 deleteCasinoReward,
-                playCasinoGame,
+                playGacha,
+                tradeUp,
                 exportData,
                 importData,
             }}

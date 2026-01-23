@@ -1,65 +1,63 @@
 import { useState, useCallback } from 'react';
-import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, Coins, Trophy, History } from 'lucide-react';
+import { Coins, Trophy, History, Package, ArrowUpCircle } from 'lucide-react';
 import { useData } from './DataContext';
-import type { CasinoReward } from './store';
-
-// Dice face components
-const DiceFaces = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
+import type { CasinoReward, InventoryItem } from './store';
+import { GachaSpinner } from './GachaSpinner';
 
 export function Casino() {
-    const { data, playCasinoGame } = useData();
-    const [isRolling, setIsRolling] = useState(false);
-    const [displayDice1, setDisplayDice1] = useState(1);
-    const [displayDice2, setDisplayDice2] = useState(1);
-    const [result, setResult] = useState<{ dice1: number; dice2: number; total: number; won: boolean; reward?: CasinoReward } | null>(null);
-    const [showResult, setShowResult] = useState(false);
-    const [selectedReward, setSelectedReward] = useState<CasinoReward | null>(null);
+    const { data, playGacha, tradeUp } = useData();
+    const [isSpinning, setIsSpinning] = useState(false);
+    const [winningResult, setWinningResult] = useState<{ reward: InventoryItem; won: boolean; tier: number } | null>(null);
+    const [tradeMessage, setTradeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    const handleRoll = useCallback(() => {
-        if (!selectedReward || data.currentPoints < selectedReward.cost || isRolling) return;
+    const handleSpin = useCallback(() => {
+        if (isSpinning) return;
 
-        setIsRolling(true);
-        setShowResult(false);
-        setResult(null);
+        const result = playGacha();
+        if (result && result.won) {
+            setWinningResult(result);
+            setIsSpinning(true);
+        }
+    }, [isSpinning, playGacha]);
 
-        // Animate dice rolling
-        let rollCount = 0;
-        const maxRolls = 15;
-        const rollInterval = setInterval(() => {
-            setDisplayDice1(Math.floor(Math.random() * 6) + 1);
-            setDisplayDice2(Math.floor(Math.random() * 6) + 1);
-            rollCount++;
-            if (rollCount >= maxRolls) {
-                clearInterval(rollInterval);
+    const handleSpinComplete = () => {
+        setIsSpinning(false);
+        // winningResult stays set to show the result message until next spin or dismissed
+    };
 
-                // Execute actual roll
-                const gameResult = playCasinoGame(selectedReward.cost);
-                setDisplayDice1(gameResult.dice1);
-                setDisplayDice2(gameResult.dice2);
-                setResult(gameResult);
-                setIsRolling(false);
+    const handleTradeUp = (targetTier: number) => {
+        const result = tradeUp(targetTier);
+        setTradeMessage({
+            type: result.success ? 'success' : 'error',
+            text: result.message
+        });
+        setTimeout(() => setTradeMessage(null), 3000);
+    };
 
-                // Show result after a brief delay
-                setTimeout(() => setShowResult(true), 300);
-            }
-        }, 100);
-    }, [data.currentPoints, isRolling, playCasinoGame, selectedReward]);
+    // Group inventory for display if needed, but per requirement "not merge", so we show all.
+    // However, sorting by acquiredAt desc is nice.
+    const sortedInventory = [...data.inventory].sort((a, b) =>
+        new Date(b.acquiredAt).getTime() - new Date(a.acquiredAt).getTime()
+    );
 
-    const Dice1Icon = DiceFaces[displayDice1 - 1];
-    const Dice2Icon = DiceFaces[displayDice2 - 1];
-    const canRoll = selectedReward && data.currentPoints >= selectedReward.cost && !isRolling;
+    // Count items for trade-up availability
+    const counts = {
+        t4: data.inventory.filter(i => i.tier === 4).length,
+        t3: data.inventory.filter(i => i.tier === 3).length,
+        t2: data.inventory.filter(i => i.tier === 2).length,
+    };
 
     return (
-        <div className="space-y-6">
-            {/* Header with Points */}
+        <div className="space-y-8">
+            {/* Header */}
             <div className="card">
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-bold flex items-center gap-2">
-                            🎰 Casino
+                            🎰 Gacha Casino
                         </h2>
                         <p className="text-[var(--color-text-muted)] text-sm mt-1">
-                            Roll two dice Monopoly-style and win rewards!
+                            Spin for rewards! 1000 pts per spin.
                         </p>
                     </div>
                     <div className="text-right">
@@ -72,162 +70,181 @@ export function Casino() {
                 </div>
             </div>
 
-            {/* Main Game Area */}
-            <div className="grid md:grid-cols-2 gap-6">
-                {/* Dice Roll Section */}
-                <div className="card casino-game-card">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        🎲🎲 Dice Roll
-                        {selectedReward && (
-                            <span className="text-sm font-normal text-[var(--color-text-muted)]">
-                                Cost: {selectedReward.cost} points
+            {/* Gacha Machine */}
+            <div className="card">
+                <h3 className="text-lg font-semibold mb-4">🔮 Gacha Machine</h3>
+
+                <div className="mb-6">
+                    <GachaSpinner
+                        rewards={data.casinoRewards}
+                        isSpinning={isSpinning}
+                        winningReward={winningResult ? data.casinoRewards.find(r => r.id === winningResult.reward.rewardId) || null : null}
+                        onComplete={handleSpinComplete}
+                    />
+                </div>
+
+                <div className="flex justify-center flex-col items-center gap-4">
+                    {!isSpinning && winningResult && (
+                        <div className="text-center animate-bounce-in">
+                            <p className="text-lg font-bold text-[var(--color-success)]">You Won!</p>
+                            <div className="text-4xl my-2">{winningResult.reward.image}</div>
+                            <p className="font-semibold">{winningResult.reward.name}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase
+                                ${winningResult.tier === 1 ? 'bg-yellow-900 text-yellow-400' : ''}
+                                ${winningResult.tier === 2 ? 'bg-purple-900 text-purple-400' : ''}
+                                ${winningResult.tier === 3 ? 'bg-blue-900 text-blue-400' : ''}
+                                ${winningResult.tier === 4 ? 'bg-gray-700 text-gray-300' : ''}
+                            `}>
+                                Tier {winningResult.tier}
                             </span>
-                        )}
-                    </h3>
-
-                    {/* Reward Selection */}
-                    <div className="mb-4">
-                        <label className="block text-sm text-[var(--color-text-muted)] mb-2">
-                            Select a reward to play for:
-                        </label>
-                        <div className="grid grid-cols-1 gap-2">
-                            {data.casinoRewards.length === 0 ? (
-                                <p className="text-[var(--color-text-muted)] text-sm">
-                                    No rewards configured. Add rewards in Manage Casino.
-                                </p>
-                            ) : (
-                                data.casinoRewards
-                                    .slice()
-                                    .sort((a, b) => b.minRoll - a.minRoll)
-                                    .map(reward => (
-                                        <button
-                                            key={reward.id}
-                                            onClick={() => setSelectedReward(reward)}
-                                            disabled={data.currentPoints < reward.cost || isRolling}
-                                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${selectedReward?.id === reward.id
-                                                    ? 'border-[var(--color-highlight)] bg-[var(--color-highlight)]/10'
-                                                    : data.currentPoints < reward.cost
-                                                        ? 'border-[var(--color-border)] opacity-50 cursor-not-allowed'
-                                                        : 'border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
-                                                }`}
-                                        >
-                                            <span className="text-xl">{reward.image}</span>
-                                            <div className="flex-1">
-                                                <p className="font-medium text-sm">{reward.name}</p>
-                                                <p className="text-xs text-[var(--color-text-muted)]">
-                                                    Roll {reward.minRoll}+ | Cost: {reward.cost} pts
-                                                </p>
-                                            </div>
-                                        </button>
-                                    ))
-                            )}
                         </div>
-                    </div>
+                    )}
 
-                    {/* Dual Dice Display */}
-                    <div className="flex flex-col items-center py-6">
-                        <div className="flex items-center gap-4">
-                            <div
-                                className={`dice-container ${isRolling ? 'dice-rolling' : ''} ${showResult && result?.won ? 'dice-win' : ''}`}
-                            >
-                                <Dice1Icon className="w-16 h-16 md:w-20 md:h-20 text-[var(--color-highlight)]" />
-                            </div>
-                            <span className="text-2xl font-bold text-[var(--color-text-muted)]">+</span>
-                            <div
-                                className={`dice-container ${isRolling ? 'dice-rolling' : ''} ${showResult && result?.won ? 'dice-win' : ''}`}
-                            >
-                                <Dice2Icon className="w-16 h-16 md:w-20 md:h-20 text-[var(--color-highlight)]" />
-                            </div>
-                        </div>
-
-                        {/* Total Display */}
-                        {showResult && result && (
-                            <div className="mt-4 text-center">
-                                <span className="text-3xl font-bold text-[var(--color-highlight)]">
-                                    = {result.total}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Result Display */}
-                        {showResult && result && (
-                            <div className={`mt-4 text-center result-animation ${result.won ? 'result-win' : 'result-lose'}`}>
-                                {result.won ? (
-                                    <>
-                                        <div className="flex items-center justify-center gap-2 text-[var(--color-success)] mb-2">
-                                            <Trophy className="w-6 h-6" />
-                                            <span className="text-xl font-bold">You Won!</span>
-                                        </div>
-                                        <div className="text-3xl mb-2">{result.reward?.image}</div>
-                                        <p className="text-[var(--color-highlight)] font-medium">{result.reward?.name}</p>
-                                    </>
-                                ) : (
-                                    <div className="text-[var(--color-text-muted)]">
-                                        <span className="text-lg">No win this time</span>
-                                        <p className="text-sm mt-1">Needed {selectedReward?.minRoll}+ to win</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Roll Button */}
                     <button
-                        onClick={handleRoll}
-                        disabled={!canRoll}
-                        className={`btn w-full py-4 text-lg ${canRoll ? 'btn-primary casino-roll-btn' : 'btn-secondary opacity-50 cursor-not-allowed'}`}
+                        onClick={handleSpin}
+                        disabled={isSpinning || data.currentPoints < 1000}
+                        className={`btn w-64 py-4 text-lg font-bold shadow-lg transition-transform active:scale-95
+                            ${isSpinning ? 'opacity-50 cursor-not-allowed' : ''}
+                            ${data.currentPoints >= 1000 ? 'btn-primary' : 'bg-gray-600 cursor-not-allowed'}
+                        `}
                     >
-                        {isRolling ? 'Rolling...' : selectedReward ? `Roll Dice (${selectedReward.cost} pts)` : 'Select a reward first'}
+                        {isSpinning ? 'Spinning...' : 'Spin Gacha (1000 pts)'}
                     </button>
-
-                    {selectedReward && data.currentPoints < selectedReward.cost && !isRolling && (
-                        <p className="text-center text-[var(--color-danger)] text-sm mt-2">
-                            Not enough points to play
-                        </p>
+                    {data.currentPoints < 1000 && (
+                        <p className="text-[var(--color-danger)] text-sm">Not enough points!</p>
                     )}
                 </div>
 
-                {/* Recent History */}
-                <div className="card">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <History className="w-5 h-5 text-[var(--color-text-muted)]" />
-                        Recent Games
-                    </h3>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {data.casinoHistory.length === 0 ? (
-                            <p className="text-[var(--color-text-muted)] text-sm">
-                                No games played yet.
-                            </p>
-                        ) : (
-                            data.casinoHistory.slice(0, 15).map(game => (
-                                <div
-                                    key={game.id}
-                                    className={`flex items-center justify-between p-3 rounded-lg ${game.won ? 'bg-[var(--color-success)]/10' : 'bg-[var(--color-bg-secondary)]'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg">🎲🎲</span>
-                                        <div>
-                                            <span className="font-medium">{game.dice1} + {game.dice2} = {game.total}</span>
-                                            <span className="text-xs text-[var(--color-text-muted)] ml-2">
-                                                (-{game.cost} pts)
-                                            </span>
-                                        </div>
-                                    </div>
-                                    {game.won ? (
-                                        <span className="text-[var(--color-success)] text-sm flex items-center gap-1">
-                                            <Trophy className="w-3 h-3" />
-                                            {game.rewardName}
-                                        </span>
-                                    ) : (
-                                        <span className="text-[var(--color-text-muted)] text-sm">
-                                            No win
-                                        </span>
-                                    )}
-                                </div>
-                            ))
-                        )}
+                <div className="mt-6 flex justify-center gap-4 text-xs text-[var(--color-text-muted)]">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400"></span> Common (50%)</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400"></span> Uncommon (37%)</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-400"></span> Rare (13%)</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400"></span> Legendary (Trade-Up Only)</span>
+                </div>
+            </div>
+
+            {/* Trade Up System */}
+            <div className="card">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <ArrowUpCircle className="w-5 h-5" />
+                    Trade Up System
+                </h3>
+
+                {tradeMessage && (
+                    <div className={`p-3 rounded mb-4 text-center ${tradeMessage.type === 'success' ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]' : 'bg-[var(--color-danger)]/10 text-[var(--color-danger)]'}`}>
+                        {tradeMessage.text}
                     </div>
+                )}
+
+                <div className="grid md:grid-cols-3 gap-4">
+                    {/* T4 -> T3 */}
+                    <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg flex flex-col items-center text-center">
+                        <h4 className="font-bold text-blue-400 mb-2">Get Uncommon (Tier 3)</h4>
+                        <p className="text-sm text-[var(--color-text-muted)] mb-4">Trade 6 Tier 4 Items</p>
+                        <div className="mb-4 text-2xl font-bold">
+                            {counts.t4} / 6
+                        </div>
+                        <button
+                            onClick={() => handleTradeUp(3)}
+                            disabled={counts.t4 < 6}
+                            className={`btn w-full ${counts.t4 >= 6 ? 'btn-primary' : 'btn-secondary opacity-50'}`}
+                        >
+                            Trade Up
+                        </button>
+                    </div>
+
+                    {/* T3 -> T2 */}
+                    <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg flex flex-col items-center text-center">
+                        <h4 className="font-bold text-purple-400 mb-2">Get Rare (Tier 2)</h4>
+                        <p className="text-sm text-[var(--color-text-muted)] mb-4">Trade 10 Tier 3 Items</p>
+                        <div className="mb-4 text-2xl font-bold">
+                            {counts.t3} / 10
+                        </div>
+                        <button
+                            onClick={() => handleTradeUp(2)}
+                            disabled={counts.t3 < 10}
+                            className={`btn w-full ${counts.t3 >= 10 ? 'btn-primary' : 'btn-secondary opacity-50'}`}
+                        >
+                            Trade Up
+                        </button>
+                    </div>
+
+                    {/* T2 -> T1 */}
+                    <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg flex flex-col items-center text-center borderBorder-yellow-500/30">
+                        <h4 className="font-bold text-yellow-400 mb-2">Get Legendary (Tier 1)</h4>
+                        <p className="text-sm text-[var(--color-text-muted)] mb-4">Trade 12 Tier 2 Items</p>
+                        <div className="mb-4 text-2xl font-bold">
+                            {counts.t2} / 12
+                        </div>
+                        <button
+                            onClick={() => handleTradeUp(1)}
+                            disabled={counts.t2 < 12}
+                            className={`btn w-full ${counts.t2 >= 12 ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'btn-secondary opacity-50'}`}
+                        >
+                            Trade Up
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Locker / Inventory */}
+            <div className="card">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Locker ({data.inventory.length} items)
+                </h3>
+
+                {sortedInventory.length === 0 ? (
+                    <div className="text-center py-8 text-[var(--color-text-muted)]">
+                        Your locker is empty. Spin the Gacha to get rewards!
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                        {sortedInventory.map((item) => (
+                            <div
+                                key={item.id}
+                                className={`
+                                    relative aspect-square flex flex-col items-center justify-center p-2 rounded-lg border bg-[var(--color-bg-secondary)]
+                                    ${item.tier === 1 ? 'border-yellow-400/50 hover:border-yellow-400' : ''}
+                                    ${item.tier === 2 ? 'border-purple-400/50 hover:border-purple-400' : ''}
+                                    ${item.tier === 3 ? 'border-blue-400/50 hover:border-blue-400' : ''}
+                                    ${item.tier === 4 ? 'border-gray-500/30 hover:border-gray-400' : ''}
+                                    transition-colors group
+                                `}
+                                title={`${item.name} (Tier ${item.tier})`}
+                            >
+                                <span className="text-3xl mb-1">{item.image}</span>
+                                <span className="text-[10px] w-full text-center truncate font-medium">{item.name}</span>
+                                <div className={`
+                                    absolute top-1 right-1 w-2 h-2 rounded-full
+                                    ${item.tier === 1 ? 'bg-yellow-400' : ''}
+                                    ${item.tier === 2 ? 'bg-purple-400' : ''}
+                                    ${item.tier === 3 ? 'bg-blue-400' : ''}
+                                    ${item.tier === 4 ? 'bg-gray-400' : ''}
+                                `}></div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* History */}
+            <div className="card">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <History className="w-5 h-5 text-[var(--color-text-muted)]" />
+                    History
+                </h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {data.casinoHistory.slice(0, 10).map((h) => (
+                        <div key={h.id} className="text-sm flex justify-between p-2 rounded bg-[var(--color-bg-secondary)]">
+                            <span>
+                                {h.game === 'dice' ? '🎲 Dice' : '🔮 Gacha'} - {h.won ? `Won ${h.rewardName}` : 'No win'}
+                            </span>
+                            <span className="text-[var(--color-text-muted)]">
+                                {new Date(h.timestamp).toLocaleTimeString()}
+                            </span>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
