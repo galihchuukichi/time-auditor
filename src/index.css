@@ -600,6 +600,55 @@ textarea:focus {
     transform: translateY(0);
 }
 
+/* Aura Animations */
+@keyframes aura-flow {
+    0% {
+        background-position: 0% 50%;
+        filter: brightness(100%) saturate(100%);
+    }
+
+    50% {
+        background-position: 100% 50%;
+        filter: brightness(130%) saturate(120%);
+    }
+
+    100% {
+        background-position: 0% 50%;
+        filter: brightness(100%) saturate(100%);
+    }
+}
+
+.animate-aura {
+    background-size: 200% 200%;
+    animation: aura-flow 4s ease infinite;
+}
+
+.aura-flame-container {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+.aura-flame-container::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background: inherit;
+    filter: blur(20px);
+    opacity: 0.5;
+    animation: flame-rotate 8s linear infinite;
+}
+
+@keyframes flame-rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 /* ===== Apple Liquid Glass Navigation ===== */
 
 /* Main App Layout */

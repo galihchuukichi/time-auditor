@@ -666,10 +666,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
             return { success: false, message: `Not enough Tier ${sourceTier} items. Need ${requiredCount}, have ${sourceItems.length}.` };
         }
 
-        // Check if target tier rewards exist
-        const possibleRewards = data.casinoRewards.filter(r => r.tier === targetTier);
-        if (possibleRewards.length === 0) {
-            return { success: false, message: `No rewards configured for Tier ${targetTier}.` };
+        // Check if target tier image pool exists
+        const tierKey = `t${targetTier}` as keyof typeof TIER_IMAGES;
+        const fullPool = TIER_IMAGES[tierKey];
+
+        if (!fullPool || fullPool.length === 0) {
+            return { success: false, message: `No items configured for Tier ${targetTier}.` };
         }
 
         // Consume items (randomly pick N items to remove)
@@ -678,20 +680,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const itemsToRemove = sourceItems.slice(0, requiredCount);
         const itemIdsToRemove = new Set(itemsToRemove.map(i => i.id));
 
-        // Generate new item
-        const rewardDef = possibleRewards[Math.floor(Math.random() * possibleRewards.length)];
+        // Generate new item from FULL POOL (not just daily rewards)
+        const randomImage = fullPool[Math.floor(Math.random() * fullPool.length)];
+        const randomName = extractNameFromPath(randomImage);
+
+        // We need a rewardId, but since this might not be in the daily menu (casinoRewards),
+        // we can just generate a new ID for the reward reference or use a placeholder.
+        // However, 'rewardId' is mostly used for tracking what "definition" generated this.
+        // Let's generate a unique ID for this 'ad-hoc' reward definition.
+        const adHocRewardId = generateId();
+
         const newItem: InventoryItem = {
             id: generateId(),
-            rewardId: rewardDef.id,
-            name: rewardDef.name,
-            image: rewardDef.image,
-            tier: rewardDef.tier,
+            rewardId: adHocRewardId,
+            name: randomName,
+            image: randomImage,
+            tier: targetTier,
             acquiredAt: new Date().toISOString()
         };
 
         const newLog: LogEntry = {
             id: generateId(),
-            message: `🔄 Trade-Up: Traded ${requiredCount} Tier ${sourceTier} for ${rewardDef.image} ${rewardDef.name} (Tier ${targetTier})`,
+            message: `🔄 Trade-Up: Traded ${requiredCount} Tier ${sourceTier} for ${newItem.image} ${newItem.name} (Tier ${targetTier})`,
             timestamp: new Date().toISOString(),
             type: 'trade_up',
         };

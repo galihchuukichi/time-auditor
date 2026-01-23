@@ -4,6 +4,36 @@ import { useData } from './DataContext';
 import type { InventoryItem } from './store';
 import { GachaSpinner } from './GachaSpinner';
 
+const TIER_1_AURAS: Record<string, string> = {
+    "Lorenzo de' Medici": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
+    "Nathan Mayer Rothschild": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
+    "Jacob Fugger": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
+    "Deddy Corbuzier": "bg-gradient-to-br from-blue-900 via-blue-950 to-white",
+    "Timothy Ronald": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
+    "Bennix": "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600",
+    "Andrew Susanto": "bg-gradient-to-br from-white via-gray-100 to-gray-200",
+    "Donald Trump": "bg-gradient-to-br from-red-600 via-white to-blue-600",
+    "Putin": "bg-gradient-to-br from-red-900 via-red-950 to-black",
+    "Lee Kuan Yew": "bg-gradient-to-br from-white via-gray-400 to-black",
+    "习近平": "bg-gradient-to-br from-red-600 via-red-500 to-red-700",
+    "L": "bg-gradient-to-br from-black via-gray-500 to-white",
+    "Nezu Chuukichi": "bg-gradient-to-br from-cyan-500 via-blue-500 to-[#995e5d]",
+    "Thick Face Black Heart": "bg-gradient-to-br from-black via-gray-900 to-gray-600",
+    "Saitama": "bg-gradient-to-br from-black via-red-900 to-red-600",
+    "Tatsumaki": "bg-gradient-to-br from-black via-green-900 to-green-500",
+    "Kiyotaka Ayanokōji": "bg-gradient-to-br from-red-600 via-orange-500 to-orange-400",
+    "Tommy Shelby": "bg-gradient-to-br from-black via-gray-800 to-gray-600",
+    "Qin Feng": "bg-gradient-to-br from-white via-red-500 to-yellow-500",
+    "Sherlock Holmes": "bg-gradient-to-br from-black via-gray-700 to-white",
+};
+
+const getAuraClass = (name: string) => {
+    for (const key in TIER_1_AURAS) {
+        if (name.includes(key)) return TIER_1_AURAS[key] + " animate-aura";
+    }
+    return null;
+};
+
 export function Casino() {
     const { data, playGacha, tradeUp } = useData();
     const [isSpinning, setIsSpinning] = useState(false);
@@ -271,13 +301,23 @@ export function Casino() {
                                         transition-all duration-300 hover:scale-[1.02] hover:z-10 hover:shadow-xl hover:${styles.shadow}
                                     `}
                                 >
-                                    {/* Background Image Layer - Full Bleed */}
+                                    {/* Background Image/Aura Layer - Full Bleed */}
                                     <div className="absolute inset-0 z-0 bg-gray-950">
+                                        {item.tier === 1 && getAuraClass(item.name) ? (
+                                            <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                                <div className={`absolute inset-0 ${getAuraClass(item.name)}`}></div>
+                                                {/* Dynamic Flame Element */}
+                                                <div className="aura-flame-container mix-blend-screen opacity-70"></div>
+                                            </div>
+                                        ) : null}
+
                                         {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
                                             <img
                                                 src={item.image}
                                                 alt={item.name}
-                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                                className={`w-full h-full transition-transform duration-700 group-hover:scale-110 
+                                                    ${item.tier === 1 && getAuraClass(item.name) ? 'object-contain p-2 relative z-10 drop-shadow-2xl' : 'object-cover'}
+                                                `}
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center opacity-30">
@@ -373,22 +413,30 @@ export function Casino() {
 
                             <div className="relative w-48 h-48 mb-6 group perspective-1000">
                                 {/* Glow Effect */}
-                                <div className={`absolute inset-0 rounded-xl blur-xl opacity-50 
-                                    ${rewardModal.item.tier === 1 ? 'bg-yellow-500' : ''}
+                                <div className={`absolute inset-0 rounded-xl blur-xl opacity-75 
+                                    ${rewardModal.item.tier === 1 ? (getAuraClass(rewardModal.item.name) || 'bg-yellow-500') : ''}
                                     ${rewardModal.item.tier === 2 ? 'bg-purple-500' : ''}
                                     ${rewardModal.item.tier === 3 ? 'bg-blue-500' : ''}
                                     ${rewardModal.item.tier === 4 ? 'bg-gray-500' : ''}
                                     animate-pulse-ring
                                 `}></div>
 
-                                <div className="relative w-full h-full rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl transform transition-transform duration-500 hover:scale-105 hover:rotate-2">
+                                <div className="relative w-full h-full rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl transform transition-transform duration-500 hover:scale-105 hover:rotate-2 bg-gray-900">
+                                    {/* Inner Aura for Legendaries */}
+                                    {rewardModal.item.tier === 1 && getAuraClass(rewardModal.item.name) && (
+                                        <>
+                                            <div className={`absolute inset-0 ${getAuraClass(rewardModal.item.name)} opacity-80`}></div>
+                                            <div className="absolute inset-0 aura-flame-container opacity-50 mix-blend-screen"></div>
+                                        </>
+                                    )}
+
                                     <img
                                         src={rewardModal.item.image}
                                         alt={rewardModal.item.name}
-                                        className="w-full h-full object-cover"
+                                        className={`w-full h-full ${rewardModal.item.tier === 1 && getAuraClass(rewardModal.item.name) ? 'object-contain p-4 relative z-10' : 'object-cover'}`}
                                     />
                                     {/* Shimmer overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity z-20"></div>
                                 </div>
 
                                 {/* Floating sparkles */}
