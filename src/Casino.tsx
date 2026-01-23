@@ -206,66 +206,105 @@ export function Casino() {
                         Your locker is empty. Spin the Gacha to get rewards!
                     </div>
                 ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3">
                         {sortedInventory.map((item) => {
                             const isLegendary = item.tier === 1;
+                            const isRare = item.tier === 2;
+                            const isUncommon = item.tier === 3;
+
+                            // Dynamic styles based on tier
+                            let styles = {
+                                border: 'border-gray-700/50',
+                                shadow: 'shadow-black/50',
+                                accent: 'bg-gray-500',
+                                text: 'text-gray-400',
+                                label: 'Common',
+                                bg: 'bg-gray-900'
+                            };
 
                             if (isLegendary) {
-                                return (
-                                    <div
-                                        key={item.id}
-                                        className="relative aspect-square flex flex-col items-center justify-center p-2 rounded-lg group overflow-hidden"
-                                        style={{
-                                            background: 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) border-box padding-box, linear-gradient(135deg, #FFD700, rgb(0, 0, 0), #FFD700) border-box rgb(0, 0, 0)',
-                                            border: '1px solid transparent',
-                                            boxShadow: 'rgba(255, 215, 0, 0.4) 0px 0px 12px, rgba(255, 215, 0, 0.2) 0px 1px 0px inset'
-                                        }}
-                                    >
-                                        <div className="absolute inset-0 animate-shimmer-premium" style={{
-                                            background: 'linear-gradient(45deg, transparent 20%, rgba(255, 215, 0, 0.3) 50%, transparent 80%)',
-                                            zIndex: 0
-                                        }}></div>
-
-                                        <div className="relative z-10 w-12 h-12 mb-1 flex items-center justify-center">
-                                            {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
-                                                <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
-                                            ) : (
-                                                <span className="text-3xl">{item.image}</span>
-                                            )}
-                                        </div>
-                                        <span className="relative z-10 text-[10px] w-full text-center truncate font-bold text-[#FFD700] uppercase tracking-wide font-mono">
-                                            {item.name}
-                                        </span>
-                                        <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FFD700] shadow-[0_0_8px_#FFD700]"></div>
-                                    </div>
-                                );
+                                styles = {
+                                    border: 'border-yellow-500/80',
+                                    shadow: 'shadow-yellow-500/20',
+                                    accent: 'bg-yellow-500',
+                                    text: 'text-yellow-400',
+                                    label: 'Legendary',
+                                    bg: 'bg-yellow-950/30'
+                                };
+                            } else if (isRare) {
+                                styles = {
+                                    border: 'border-purple-500/60',
+                                    shadow: 'shadow-purple-500/20',
+                                    accent: 'bg-purple-500',
+                                    text: 'text-purple-400',
+                                    label: 'Rare',
+                                    bg: 'bg-purple-950/30'
+                                };
+                            } else if (isUncommon) {
+                                styles = {
+                                    border: 'border-blue-500/60',
+                                    shadow: 'shadow-blue-500/20',
+                                    accent: 'bg-blue-500',
+                                    text: 'text-blue-400',
+                                    label: 'Uncommon',
+                                    bg: 'bg-blue-950/30'
+                                };
                             }
 
                             return (
                                 <div
                                     key={item.id}
                                     className={`
-                                        relative aspect-square flex flex-col items-center justify-center p-2 rounded-lg border bg-[var(--color-bg-secondary)]
-                                        ${item.tier === 2 ? 'border-purple-400/50 hover:border-purple-400' : ''}
-                                        ${item.tier === 3 ? 'border-blue-400/50 hover:border-blue-400' : ''}
-                                        ${item.tier === 4 ? 'border-gray-500/30 hover:border-gray-400' : ''}
-                                        transition-colors group
+                                        group relative aspect-square rounded-xl overflow-hidden cursor-pointer
+                                        border ${styles.border} ${styles.bg}
+                                        transition-all duration-300 hover:scale-[1.02] hover:z-10 hover:shadow-xl hover:${styles.shadow}
                                     `}
                                 >
-                                    <div className="w-12 h-12 mb-1 flex items-center justify-center">
+                                    {/* Background Image Layer - Full Bleed */}
+                                    <div className="absolute inset-0 z-0 bg-gray-950">
                                         {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
-                                            <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
+                                            <img
+                                                src={item.image}
+                                                alt={item.name}
+                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                            />
                                         ) : (
-                                            <span className="text-3xl">{item.image}</span>
+                                            <div className="w-full h-full flex items-center justify-center opacity-30">
+                                                <span className="text-5xl select-none">{item.image}</span>
+                                            </div>
                                         )}
                                     </div>
-                                    <span className="text-[10px] w-full text-center truncate font-medium">{item.name}</span>
-                                    <div className={`
-                                        absolute top-1 right-1 w-2 h-2 rounded-full
-                                        ${item.tier === 2 ? 'bg-purple-400' : ''}
-                                        ${item.tier === 3 ? 'bg-blue-400' : ''}
-                                        ${item.tier === 4 ? 'bg-gray-400' : ''}
-                                    `}></div>
+
+                                    {/* Shimmer Effect for Legendaries */}
+                                    {isLegendary && (
+                                        <div className="absolute inset-0 z-10 animate-shimmer-premium pointer-events-none opacity-20" style={{
+                                            background: 'linear-gradient(45deg, transparent 40%, rgba(255, 215, 0, 0.6) 50%, transparent 60%)',
+                                        }}></div>
+                                    )}
+
+                                    {/* Gradient Overlay for Text Readability */}
+                                    <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-70 group-hover:opacity-85 transition-opacity duration-300"></div>
+
+                                    {/* Content Layer (Bottom) */}
+                                    <div className="absolute inset-x-0 bottom-0 z-20 p-3 flex flex-col justify-end">
+                                        <div className="transform translate-y-1 transition-transform duration-300 group-hover:translate-y-0">
+                                            {/* Tier Label */}
+                                            <div className="flex items-center gap-1.5 mb-1 opacity-90">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${styles.accent} shadow-[0_0_6px_currentColor]`}></div>
+                                                <span className={`text-[10px] uppercase font-bold tracking-wider leading-none ${styles.text}`}>
+                                                    {styles.label}
+                                                </span>
+                                            </div>
+
+                                            {/* Item Name */}
+                                            <h4 className="text-sm font-bold text-white leading-tight truncate drop-shadow-sm group-hover:text-white/100">
+                                                {item.name}
+                                            </h4>
+                                        </div>
+                                    </div>
+
+                                    {/* Hover Border Glow */}
+                                    <div className={`absolute inset-0 border-2 ${styles.border.replace('border-', 'border-')} opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl pointer-events-none`}></div>
                                 </div>
                             );
                         })}
