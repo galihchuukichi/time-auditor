@@ -80,6 +80,7 @@ export interface AppData {
     selectedCharacterId: string | null;
     quests: Quest[];
     lastDailyBonusClaimed: string | null; // ISO Date of the last day bonus was claimed
+    lastWeeklyBonusClaimed: string | null;
 }
 
 export interface Quest {
@@ -128,6 +129,7 @@ const defaultData: AppData = {
     selectedCharacterId: null,
     quests: [],
     lastDailyBonusClaimed: null,
+    lastWeeklyBonusClaimed: null,
 };
 
 export function loadData(): AppData {
@@ -160,6 +162,9 @@ export function loadData(): AppData {
             }
             if (loadedData.lastDailyBonusClaimed === undefined) {
                 loadedData.lastDailyBonusClaimed = null;
+            }
+            if (loadedData.lastWeeklyBonusClaimed === undefined) {
+                loadedData.lastWeeklyBonusClaimed = null;
             }
             return loadedData;
         }

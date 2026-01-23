@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BellOff, Clock, Power, PowerOff, X, ClipboardList, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BellOff, Clock, Power, PowerOff, X, ClipboardList, Search, ChevronLeft, ChevronRight, Plus, Minus, Gift, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useTimer } from './TimerContext';
 import { useData } from './DataContext';
 import { PLANNING_POINTS, AUDITING_POINTS } from './store';
@@ -58,7 +58,7 @@ interface ModalState {
 
 export function Dashboard() {
     const timer = useTimer();
-    const { data, logActivity, addTimelineEntry, removeTimelineEntry } = useData();
+    const { data, logActivity, addTimelineEntry, removeTimelineEntry, updateQuestProgress, claimDailyBonus, claimWeeklyBonus, logQuestPenalty } = useData();
     const [justLogged, setJustLogged] = useState<string | null>(null);
     const [modal, setModal] = useState<ModalState | null>(null);
     const [entryDescription, setEntryDescription] = useState('');
@@ -67,6 +67,7 @@ export function Dashboard() {
     const [planningDate, setPlanningDate] = useState(getTodayDateString());
     const [auditingDate, setAuditingDate] = useState(getTodayDateString());
     const [expandedLogs, setExpandedLogs] = useState(false);
+    const [questTab, setQuestTab] = useState<'daily' | 'weekly'>('daily');
 
     const visibleActivities = data.activities.filter(a => a.isVisible);
     // const rewards = visibleActivities.filter(a => a.type === 'reward'); // Replaced by Quests
@@ -257,33 +258,200 @@ export function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Quests (formerly Rewards) */}
                 <div className="card">
-                    <h3 className="text-lg font-semibold mb-4 text-[var(--color-success)]">📜 Active Quests</h3>
-                    <div className="space-y-2">
-                        {data.quests?.filter(q => !q.isCompleted && q.type === 'daily').length === 0 ? (
-                            <p className="text-[var(--color-text-muted)] text-sm">No active daily quests.</p>
-                        ) : (
-                            data.quests?.filter(q => !q.isCompleted && q.type === 'daily').slice(0, 5).map(quest => (
-                                <div
-                                    key={quest.id}
-                                    className="w-full text-left px-4 py-3 rounded-lg bg-[var(--color-surface)] flex justify-between items-center border border-gray-800"
-                                >
-                                    <div className="flex flex-col">
-                                        <span className="font-medium text-sm text-gray-200">{quest.title}</span>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                                            <div className="bg-black/40 w-16 h-1.5 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-blue-500"
-                                                    style={{ width: `${Math.min(100, (quest.currentValue / quest.targetValue) * 100)}%` }}
-                                                />
-                                            </div>
-                                            <span>{quest.currentValue}/{quest.targetValue}</span>
-                                        </div>
-                                    </div>
-                                    <span className="text-[var(--color-success)] font-bold text-xs">+{quest.points}</span>
-                                </div>
-                            ))
-                        )}
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-[var(--color-success)] flex items-center gap-2">
+                            📜 Active Quests
+                        </h3>
+                        <div className="flex bg-[var(--color-bg-secondary)] rounded-lg p-1 gap-1">
+                            <button
+                                onClick={() => setQuestTab('daily')}
+                                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${questTab === 'daily'
+                                    ? 'bg-[var(--color-primary)] text-white shadow-sm'
+                                    : 'text-[var(--color-text-muted)] hover:text-white'
+                                    }`}
+                            >
+                                Daily
+                            </button>
+                            <button
+                                onClick={() => setQuestTab('weekly')}
+                                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${questTab === 'weekly'
+                                    ? 'bg-purple-600 text-white shadow-sm'
+                                    : 'text-[var(--color-text-muted)] hover:text-white'
+                                    }`}
+                            >
+                                Weekly
+                            </button>
+                        </div>
                     </div>
+
+                    {/* Bonus Progress Card */}
+                    {(() => {
+                        const todayIndex = new Date().getDay();
+                        const isDaily = questTab === 'daily';
+
+                        // Filter Quests
+                        const questsToShow = (data.quests || []).filter(q => {
+                            if (q.type !== questTab) return false;
+                            if (q.type === 'daily' && q.recurrence === 'repeat') {
+                                if (q.daysOfWeek && q.daysOfWeek.length > 0 && !q.daysOfWeek.includes(todayIndex)) {
+                                    return false;
+                                }
+                            }
+                            return true;
+                        });
+
+                        // Bonus Calculations
+                        const questsForBonus = questsToShow.filter(q => q.recurrence === 'repeat');
+                        const completedCount = questsForBonus.filter(q => q.isCompleted).length;
+                        const totalCount = questsForBonus.length;
+                        const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+                        // Claim Status
+                        // Simple check: do we have the current day/week claimed?
+                        // We duplicate WIB logic briefly here for UI consistency
+                        const now = new Date();
+                        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                        const wib = new Date(utc + (3600000 * 7));
+                        const wibDateStr = wib.toISOString().split('T')[0];
+                        
+                        // Week start (Monday based for consistency with store?)
+                        // getStartOfWeekWIB uses Monday as start if getDay() returns 1. 0 is Sun.
+                        // Impl: day=0(Sun) -> -6. day=1(Mon) -> 0.
+                        const day = wib.getDay();
+                        const diff = wib.getDate() - day + (day === 0 ? -6 : 1);
+                        const weekStart = new Date(wib);
+                        weekStart.setDate(diff);
+                        const weekStr = weekStart.toISOString().split('T')[0];
+
+                        const isClaimed = isDaily ? (data.lastDailyBonusClaimed === wibDateStr) : (data.lastWeeklyBonusClaimed === weekStr);
+                        const canClaim = totalCount > 0 && completedCount === totalCount && !isClaimed;
+                        const bonusPoints = isDaily ? 500 : 1000;
+
+                        const handleProgress = (quest: any, delta: number) => {
+                            const target = quest.targetValue || 1;
+                            const current = quest.currentValue || 0;
+                            
+                            // Check Penalty on Minus
+                            if (delta < 0 && current === 0) {
+                                if (confirm(`Mark "${quest.title}" as FORGOTTEN? You will be penalized 50 points.`)) {
+                                    logQuestPenalty(quest.id);
+                                }
+                                return;
+                            }
+
+                            let next = current + delta;
+                            if (next < 0) next = 0;
+                            
+                            // Checkbox logic
+                            if (target === 1) {
+                                next = delta > 0 ? 1 : 0;
+                            }
+
+                            updateQuestProgress(quest.id, next);
+                        };
+
+                        return (
+                            <div className="space-y-4">
+                                {/* Bonus Banner */}
+                                <div className={`p-3 rounded-lg border ${isDaily ? 'bg-blue-900/20 border-blue-500/30' : 'bg-purple-900/20 border-purple-500/30'}`}>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Gift className={`w-4 h-4 ${isDaily ? 'text-blue-400' : 'text-purple-400'}`} />
+                                            <span className="text-sm font-bold text-gray-200">
+                                                {isDaily ? 'Daily Bonus' : 'Weekly Bonus'}
+                                            </span>
+                                        </div>
+                                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${isClaimed ? 'bg-green-900/50 text-green-400' : 'bg-black/30 text-yellow-400'}`}>
+                                            {isClaimed ? 'CLAIMED' : `+${bonusPoints} PTS`}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1 bg-black/40 h-1.5 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full transition-all duration-500 ${isDaily ? 'bg-blue-500' : 'bg-purple-500'}`}
+                                                style={{ width: `${progress}%` }}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={isDaily ? claimDailyBonus : claimWeeklyBonus}
+                                            disabled={!canClaim}
+                                            className={`px-3 py-1 rounded text-[10px] font-bold transition-all ${canClaim
+                                                ? 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-lg shadow-yellow-500/20'
+                                                : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            CLAIM
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* List */}
+                                <div className="space-y-2">
+                                    {questsToShow.length === 0 ? (
+                                        <p className="text-[var(--color-text-muted)] text-sm text-center py-4">
+                                            No {isDaily ? 'daily' : 'weekly'} quests found.
+                                        </p>
+                                    ) : (
+                                        questsToShow.map(quest => (
+                                            <div
+                                                key={quest.id}
+                                                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface)] border border-gray-800 hover:border-gray-700 transition-all"
+                                            >
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className={`font-medium text-sm ${quest.isCompleted ? 'text-green-400' : 'text-gray-200'}`}>
+                                                        {quest.title}
+                                                    </span>
+                                                    <div className="flex items-center gap-1">
+                                                        {quest.isCompleted && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+                                                        <span className="text-[var(--color-success)] font-bold text-xs">+{quest.points}</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex items-center justify-between gap-4">
+                                                    {/* Progress */}
+                                                    <div className="flex-1 flex flex-col gap-1">
+                                                        <div className="bg-black/40 h-1.5 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full ${quest.isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                                style={{ width: `${Math.min(100, (quest.currentValue / quest.targetValue) * 100)}%` }}
+                                                            />
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-gray-500">
+                                                            <span>{quest.currentValue} / {quest.targetValue} {quest.unit}</span>
+                                                            {quest.currentValue === 0 && (
+                                                                <span className="text-red-900/50 flex items-center gap-1">
+                                                                    <AlertTriangle className="w-3 h-3" />
+                                                                    -50 if forgot
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Buttons */}
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => handleProgress(quest, -1)}
+                                                            className="w-6 h-6 flex items-center justify-center rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-red-400 transition-colors"
+                                                            title={quest.currentValue === 0 ? "Mark as Forgotten (-50 pts)" : "Decrease Progress"}
+                                                        >
+                                                            <Minus className="w-3 h-3" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleProgress(quest, 1)}
+                                                            className="w-6 h-6 flex items-center justify-center rounded bg-gray-800 hover:bg-gray-700 text-white hover:text-green-400 transition-colors"
+                                                            title="Add Progress"
+                                                        >
+                                                            <Plus className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Punishments */}

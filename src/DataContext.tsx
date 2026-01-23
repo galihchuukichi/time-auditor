@@ -20,6 +20,9 @@ import {
     syncDataToSupabase,
     saveInventoryItem as saveInventoryItemToSupabase,
     deleteInventoryItemFromSupabase,
+    saveQuest,
+    deleteQuestFromSupabase,
+    saveBonusClaims,
 } from './supabase';
 
 const TIER_IMAGES = {
@@ -218,6 +221,8 @@ interface DataContextType {
     deleteQuest: (id: string) => void;
     updateQuestProgress: (id: string, value: number) => void;
     claimDailyBonus: () => void;
+    claimWeeklyBonus: () => void;
+    logQuestPenalty: (questId: string) => void;
     // Backup
     exportData: () => void;
     importData: (jsonString: string) => boolean;
@@ -278,7 +283,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
                             new Date(b.acquiredAt).getTime() - new Date(a.acquiredAt).getTime()
                         );
 
-                        currentData = { ...cloudData, inventory: mergedInv };
+                        // Merge Quests
+                        const localQuests = currentData.quests || [];
+                        const cloudQuests = cloudData.quests || [];
+                        const mergedQuestsMap = new Map();
+                        localQuests.forEach(q => mergedQuestsMap.set(q.id, q));
+                        cloudQuests.forEach(q => mergedQuestsMap.set(q.id, q));
+                        const mergedQuests = Array.from(mergedQuestsMap.values());
+
+                        currentData = {
+                            ...cloudData,
+                            inventory: mergedInv,
+                            quests: mergedQuests
+                        };
                     }
                 } catch (error) {
                     console.error('Failed to load from Supabase:', error);
@@ -812,6 +829,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ...prev,
             quests: [...(prev.quests || []), newQuest]
         }));
+        if (isSupabaseConfigured()) {
+            saveQuest(newQuest);
+        }
     }, []);
 
     const updateQuest = useCallback((id: string, updates: Partial<Quest>) => {
@@ -819,13 +839,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ...prev,
             quests: (prev.quests || []).map(q => q.id === id ? { ...q, ...updates } : q)
         }));
-    }, []);
+
+        const quest = data.quests.find(q => q.id === id);
+        if (quest && isSupabaseConfigured()) {
+            saveQuest({ ...quest, ...updates });
+        }
+    }, [data.quests]);
 
     const deleteQuest = useCallback((id: string) => {
         setData(prev => ({
             ...prev,
             quests: (prev.quests || []).filter(q => q.id !== id)
         }));
+        if (isSupabaseConfigured()) {
+            deleteQuestFromSupabase(id);
+        }
     }, []);
 
     const updateQuestProgress = useCallback((id: string, newValue: number) => {
@@ -879,7 +907,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 logs: newLogs
             };
         });
-    }, []);
+
+        // Use a heuristic or separate effect? 
+        // We can't easily access the "new state" here derived from "prev".
+        // BUT, since we computed the new state logic deterministically above, we can replicate for Supabase sync.
+        // OR simpler: wait for effect? No.
+
+        // Actually, let's just fetch it from the calculation.
+        // Re-calculate simply for the sync:
+        const quest = data.quests.find(q => q.id === id);
+        if (quest && isSupabaseConfigured()) {
+            // Logic duplication is risky. Better:
+            // Construct the "next" value as we did inside set state?
+            // Since updateQuestProgress is closure, we can't see the *just* updated value easily if we rely on `prev`.
+
+            // BUT, `newValue` is passed in!
+            // So we know the new `currentValue`. 
+            // We know the target.
+            const target = quest.targetValue || 1;
+            const isNowCompleted = newValue >= target;
+            const lastCompletedAt = isNowCompleted ? new Date().toISOString() : (quest.isCompleted ? quest.lastCompletedAt : undefined);
+
+            saveQuest({
+                ...quest,
+                currentValue: newValue,
+                isCompleted: isNowCompleted,
+                lastCompletedAt: lastCompletedAt
+            });
+        }
+    }, [data.quests]);
 
     const toggleQuestCompletion = useCallback((id: string) => {
         setData(prev => {
@@ -944,10 +1000,68 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 pointsChange: bonusPoints
             };
 
+            if (isSupabaseConfigured()) {
+                saveBonusClaims(todayWIB, prev.lastWeeklyBonusClaimed);
+            }
+
             return {
                 ...prev,
                 lastDailyBonusClaimed: todayWIB,
                 currentPoints: prev.currentPoints + bonusPoints,
+                logs: [...(prev.logs || []), newLog]
+            };
+        });
+    }, []);
+
+    const claimWeeklyBonus = useCallback(() => {
+        setData(prev => {
+            const now = new Date();
+            const startOfWeekWIB = getStartOfWeekWIB(now); // This returns Date
+            const weekId = startOfWeekWIB.toISOString().split('T')[0]; // Use start of week date as ID
+
+            if (prev.lastWeeklyBonusClaimed === weekId) return prev;
+
+            const bonusPoints = 1000;
+
+            const newLog: LogEntry = {
+                id: generateId(),
+                message: `🔥 Claimed Weekly Quest Bonus!`,
+                timestamp: new Date().toISOString(),
+                type: 'activity',
+                pointsChange: bonusPoints
+            };
+
+            if (isSupabaseConfigured()) {
+                saveBonusClaims(prev.lastDailyBonusClaimed, weekId);
+            }
+
+            return {
+                ...prev,
+                lastWeeklyBonusClaimed: weekId,
+                currentPoints: prev.currentPoints + bonusPoints,
+                logs: [...(prev.logs || []), newLog]
+            };
+        });
+    }, []);
+
+    const logQuestPenalty = useCallback((questId: string) => {
+        setData(prev => {
+            const quest = prev.quests.find(q => q.id === questId);
+            if (!quest) return prev;
+
+            const penalty = -50;
+
+            const newLog: LogEntry = {
+                id: generateId(),
+                message: `⚠️ Quest Forgot/Penalty: "${quest.title}"`,
+                timestamp: new Date().toISOString(),
+                type: 'activity',
+                pointsChange: penalty
+            };
+
+            return {
+                ...prev,
+                currentPoints: prev.currentPoints + penalty,
                 logs: [...(prev.logs || []), newLog]
             };
         });
@@ -987,6 +1101,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 selectedCharacterId: parsed.selectedCharacterId || null,
                 quests: parsed.quests || [],
                 lastDailyBonusClaimed: parsed.lastDailyBonusClaimed || null,
+                lastWeeklyBonusClaimed: parsed.lastWeeklyBonusClaimed || null,
             };
 
             setData(newData);
@@ -1031,6 +1146,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 deleteQuest,
                 updateQuestProgress,
                 claimDailyBonus,
+                claimWeeklyBonus,
+                logQuestPenalty,
                 exportData,
                 importData,
                 setData,

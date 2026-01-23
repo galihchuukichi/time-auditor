@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory } from './store';
+import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory, Quest } from './store';
 
 // Supabase configuration
 // Replace these with your actual Supabase project credentials
@@ -24,7 +24,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
     if (!supabase) return null;
 
     try {
-        const [activitiesRes, shopItemsRes, timelineRes, userDataRes, purchaseRes, logsRes, casinoRewardsRes, casinoHistoryRes, inventoryRes] = await Promise.all([
+        const [activitiesRes, shopItemsRes, timelineRes, userDataRes, purchaseRes, logsRes, casinoRewardsRes, casinoHistoryRes, inventoryRes, questsRes] = await Promise.all([
             supabase.from('activities').select('*'),
             supabase.from('shop_items').select('*'),
             supabase.from('timeline_entries').select('*'),
@@ -34,6 +34,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             supabase.from('casino_rewards').select('*'),
             supabase.from('casino_history').select('*').order('created_at', { ascending: false }),
             supabase.from('inventory').select('*').order('acquired_at', { ascending: false }),
+            supabase.from('quests').select('*'),
         ]);
 
         const activities: Activity[] = (activitiesRes.data || []).map(a => ({
@@ -106,6 +107,21 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             acquiredAt: i.acquired_at,
         }));
 
+        const quests: any[] = (questsRes.data || []).map(q => ({
+            id: q.id,
+            title: q.title,
+            description: q.description,
+            points: q.points,
+            type: q.type,
+            recurrence: q.recurrence,
+            isCompleted: q.is_completed,
+            lastCompletedAt: q.last_completed_at,
+            targetValue: q.target_value,
+            currentValue: q.current_value,
+            unit: q.unit,
+            daysOfWeek: q.days_of_week
+        }));
+
         return {
             activities,
             shopItems,
@@ -116,6 +132,10 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             casinoRewards,
             casinoHistory,
             inventory,
+            quests,
+            selectedCharacterId: userDataRes.data?.selected_character_id || null,
+            lastDailyBonusClaimed: userDataRes.data?.last_daily_bonus_claimed || null,
+            lastWeeklyBonusClaimed: userDataRes.data?.last_weekly_bonus_claimed || null,
         };
     } catch (error) {
         console.error('Error fetching data from Supabase:', error);
@@ -208,6 +228,19 @@ export async function updateUserPoints(points: number): Promise<boolean> {
     return !error;
 }
 
+// Update user bonus claims in Supabase
+export async function saveBonusClaims(daily: string | null, weekly: string | null): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase.from('user_data').update({
+        last_daily_bonus_claimed: daily,
+        last_weekly_bonus_claimed: weekly,
+        updated_at: new Date().toISOString(),
+    }).eq('user_id', DEFAULT_USER_ID);
+
+    return !error;
+}
+
 // Add log entry to Supabase
 export async function addLogEntry(log: LogEntry): Promise<boolean> {
     if (!supabase) return false;
@@ -267,6 +300,13 @@ export async function syncDataToSupabase(data: AppData): Promise<boolean> {
         if (data.inventory) {
             for (const item of data.inventory) {
                 await saveInventoryItem(item);
+            }
+        }
+
+        // Sync quests
+        if (data.quests) {
+            for (const quest of data.quests) {
+                await saveQuest(quest);
             }
         }
 
@@ -349,3 +389,35 @@ export async function deleteInventoryItemFromSupabase(id: string): Promise<boole
     const { error } = await supabase.from('inventory').delete().eq('id', id);
     return !error;
 }
+
+// Save quest to Supabase
+export async function saveQuest(quest: Quest): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase.from('quests').upsert({
+        id: quest.id,
+        user_id: DEFAULT_USER_ID,
+        title: quest.title,
+        description: quest.description,
+        points: quest.points,
+        type: quest.type,
+        recurrence: quest.recurrence,
+        is_completed: quest.isCompleted,
+        last_completed_at: quest.lastCompletedAt,
+        target_value: quest.targetValue,
+        current_value: quest.currentValue,
+        unit: quest.unit,
+        days_of_week: quest.daysOfWeek
+    });
+
+    return !error;
+}
+
+// Delete quest from Supabase
+export async function deleteQuestFromSupabase(id: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase.from('quests').delete().eq('id', id);
+    return !error;
+}
+
