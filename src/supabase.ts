@@ -24,7 +24,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
     if (!supabase) return null;
 
     try {
-        const [activitiesRes, shopItemsRes, timelineRes, userDataRes, purchaseRes, logsRes, casinoRewardsRes, casinoHistoryRes] = await Promise.all([
+        const [activitiesRes, shopItemsRes, timelineRes, userDataRes, purchaseRes, logsRes, casinoRewardsRes, casinoHistoryRes, inventoryRes] = await Promise.all([
             supabase.from('activities').select('*'),
             supabase.from('shop_items').select('*'),
             supabase.from('timeline_entries').select('*'),
@@ -33,6 +33,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             supabase.from('logs').select('*').order('created_at', { ascending: true }),
             supabase.from('casino_rewards').select('*'),
             supabase.from('casino_history').select('*').order('created_at', { ascending: false }),
+            supabase.from('inventory').select('*').order('acquired_at', { ascending: false }),
         ]);
 
         const activities: Activity[] = (activitiesRes.data || []).map(a => ({
@@ -77,6 +78,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             id: c.id,
             name: c.name,
             image: c.image,
+            tier: c.tier || 4, // Default to 4 (Common) if missing
             minRoll: c.min_roll,
             cost: c.cost || 1,
             description: c.description,
@@ -95,6 +97,15 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             timestamp: h.created_at,
         }));
 
+        const inventory: any[] = (inventoryRes.data || []).map(i => ({
+            id: i.id,
+            rewardId: i.reward_id,
+            name: i.name,
+            image: i.image,
+            tier: i.tier,
+            acquiredAt: i.acquired_at,
+        }));
+
         return {
             activities,
             shopItems,
@@ -104,6 +115,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             logs,
             casinoRewards,
             casinoHistory,
+            inventory,
         };
     } catch (error) {
         console.error('Error fetching data from Supabase:', error);
@@ -251,6 +263,13 @@ export async function syncDataToSupabase(data: AppData): Promise<boolean> {
             await saveCasinoReward(reward);
         }
 
+        // Sync inventory (using saveInventoryItem)
+        if (data.inventory) {
+            for (const item of data.inventory) {
+                await saveInventoryItem(item);
+            }
+        }
+
         // Update points
         await updateUserPoints(data.currentPoints);
 
@@ -303,5 +322,30 @@ export async function addCasinoGameHistory(history: CasinoGameHistory): Promise<
         reward_name: history.rewardName,
     });
 
+    return !error;
+}
+
+// Save inventory item to Supabase
+export async function saveInventoryItem(item: any): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase.from('inventory').upsert({
+        id: item.id,
+        user_id: DEFAULT_USER_ID,
+        reward_id: item.rewardId,
+        name: item.name,
+        image: item.image,
+        tier: item.tier,
+        acquired_at: item.acquiredAt,
+    });
+
+    return !error;
+}
+
+// Delete inventory item from Supabase
+export async function deleteInventoryItemFromSupabase(id: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase.from('inventory').delete().eq('id', id);
     return !error;
 }

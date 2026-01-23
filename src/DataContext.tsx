@@ -18,14 +18,104 @@ import {
     deleteCasinoRewardFromSupabase,
     addCasinoGameHistory,
     syncDataToSupabase,
+    saveInventoryItem as saveInventoryItemToSupabase,
+    deleteInventoryItemFromSupabase,
 } from './supabase';
 
 const TIER_IMAGES = {
-    t4: Array.from({ length: 15 }, (_, i) => `/tier4/tier4 (${i + 1}).jpg`), // Common
-    t3: Array.from({ length: 15 }, (_, i) => `/tier3/tier3 (${i + 1}).jpg`), // Uncommon
-    t2: Array.from({ length: 15 }, (_, i) => `/tier2/tier2 (${i + 1}).jpg`), // Rare
-    t1: Array.from({ length: 15 }, (_, i) => `/tier1/tier1 (${i + 1}).jpg`), // Legendary (Trade up)
+    t4: [
+        "/tier4/tier4 (1)_OPM NPC1.jpg",
+        "/tier4/tier4 (2)_Mao Mao.jpg",
+        "/tier4/tier4 (3)_Ranpo Edogawa.jpg",
+        "/tier4/tier4 (4)_Taki Tachibana.jpg",
+        "/tier4/tier4 (5)_Shikamaru.jpg",
+        "/tier4/tier4 (6)_Mitsuha Miyamizu.jpg",
+        "/tier4/tier4 (7)_Weak Saitama.jpg",
+        "/tier4/tier4 (8)_Atomic Samurai.jpg",
+        "/tier4/tier4 (9)_King.jpg",
+        "/tier4/tier4 (10)_Zombieman.jpg",
+        "/tier4/tier4 (11)_Pig God.jpg",
+        "/tier4/tier4 (12)_Amai Mask.jpg",
+        "/tier4/tier4 (13)_Fubuki.jpg",
+        "/tier4/tier4 (14)_Mumen Rider.jpg",
+        "/tier4/tier4 (15)_Captain Mizuki.jpg",
+        "/tier4/tier4 (16)_Ukyo Saionji.jpg",
+        "/tier4/tier4 (17)_Kohaku.jpg",
+        "/tier4/tier4 (18)_Taiju Oki.jpg",
+        "/tier4/tier4 (19)_Yuzuriha Ogawa.jpg",
+        "/tier4/tier4 (20)_Suika.jpg",
+    ],
+    t3: [
+        "/tier3/tier3 (1)_Emma.jpg",
+        "/tier3/tier3 (2)_Eren Yeager.jpg",
+        "/tier3/tier3 (3)_Eren Yeager.jpg",
+        "/tier3/tier3 (4)_Armin.jpg",
+        "/tier3/tier3 (5)_Mikasa.jpg",
+        "/tier3/tier3 (6)_Ray.jpg",
+        "/tier3/tier3 (7)_Yor Forger.jpg",
+        "/tier3/tier3 (8)_Anya.jpg",
+        "/tier3/tier3 (9)_Deku.jpg",
+        "/tier3/tier3 (10)_Shoto Todoroki.jpg",
+        "/tier3/tier3 (11)_Bakugo.jpg",
+        "/tier3/tier3 (12)_All Might.jpg",
+        "/tier3/tier3 (13)_Fang.jpg",
+        "/tier3/tier3 (14)_Garou.jpg",
+        "/tier3/tier3 (15)_Genos.jpg",
+        "/tier3/tier3 (16)_Mickey.jpg",
+        "/tier3/tier3 (17)_Conan.jpg",
+    ],
+    t2: [
+        "/tier2/tier2 (1)_Guru Gembul.jpg",
+        "/tier2/tier2 (2)_Leon Hartono.jpg",
+        "/tier2/tier2 (3)_Light Yagami.jpg",
+        "/tier2/tier2 (4)_Prabowo Subianto.jpg",
+        "/tier2/tier2 (5)_Soekarno.jpg",
+        "/tier2/tier2 (6)_Amran Sulaiman.jpg",
+        "/tier2/tier2 (7)_Ahok.jpg",
+        "/tier2/tier2 (8)_Anies Baswedan.jpg",
+        "/tier2/tier2 (9)_Purbaya.jpg",
+        "/tier2/tier2 (10)_Loid Forger.jpg",
+        "/tier2/tier2 (11)_Saitama.jpg",
+        "/tier2/tier2 (12)_Kogorou Akechi.jpg",
+        "/tier2/tier2 (13)_Clannad Family.jpg",
+        "/tier2/tier2 (14)_Norman.jpg",
+        "/tier2/tier2 (15)_Senku Ishigami.jpg",
+        "/tier2/tier2 (16)_Anthony Sudarsono.jpg",
+    ],
+    t1: [
+        "/tier1/tier1 (1)_Lorenzo de' Medici.jpg",
+        "/tier1/tier1 (2)_Nathan Mayer Rothschild.jpg",
+        "/tier1/tier1 (3)_Jacob Fugger.jpg",
+        "/tier1/tier1 (4)_Deddy Corbuzier.jpg",
+        "/tier1/tier1 (5)_Timothy Ronald.jpg",
+        "/tier1/tier1 (6)_Bennix.jpg",
+        "/tier1/tier1 (7)_Andrew Susanto.jpg",
+        "/tier1/tier1 (8)_Donald Trump.jpg",
+        "/tier1/tier1 (9)_Putin.jpg",
+        "/tier1/tier1 (10)_Lee Kuan Yew.jpg",
+        "/tier1/tier1 (11)_习近平.jpg",
+        "/tier1/tier1 (12)_L.jpg",
+        "/tier1/tier1 (13)_Nezu Chuukichi.jpg",
+        "/tier1/tier1 (14)_Thick Face Black Heart.jpg",
+        "/tier1/tier1 (15)_Saitama.jpg",
+        "/tier1/tier1 (16)_Tatsumaki.jpg",
+        "/tier1/tier1 (17)_Kiyotaka Ayanokōji.jpg",
+        "/tier1/tier1 (18)_Tommy Shelby.jpg",
+        "/tier1/tier1 (19)_Qin Feng.jpg",
+        "/tier1/tier1 (20)_Sherlock Holmes.jpg",
+    ],
 };
+
+function extractNameFromPath(path: string): string {
+    // Format: /tierX/tierX (Y)_Name.jpg
+    const filename = path.split('/').pop() || '';
+    const parts = filename.split('_');
+    if (parts.length > 1) {
+        // Remove .jpg extension
+        return parts[1].replace('.jpg', '');
+    }
+    return filename;
+}
 
 function getRandomItems<T>(arr: T[], count: number): T[] {
     const shuffled = [...arr].sort(() => 0.5 - Math.random());
@@ -44,7 +134,7 @@ function generateDailyRewards(): CasinoReward[] {
     t2Images.forEach((img, idx) => {
         rewards.push({
             id: generateId(),
-            name: `Rare Weapon ${idx + 1}`,
+            name: extractNameFromPath(img),
             image: img,
             tier: 2,
             minRoll: 0, cost: 0, // Legacy/Unused
@@ -57,7 +147,7 @@ function generateDailyRewards(): CasinoReward[] {
     t3Images.forEach((img, idx) => {
         rewards.push({
             id: generateId(),
-            name: `Uncommon Weapon ${idx + 1}`,
+            name: extractNameFromPath(img),
             image: img,
             tier: 3,
             minRoll: 0, cost: 0,
@@ -70,7 +160,7 @@ function generateDailyRewards(): CasinoReward[] {
     t4Images.forEach((img, idx) => {
         rewards.push({
             id: generateId(),
-            name: `Common Weapon ${idx + 1}`,
+            name: extractNameFromPath(img),
             image: img,
             tier: 4,
             minRoll: 0, cost: 0,
@@ -84,7 +174,7 @@ function generateDailyRewards(): CasinoReward[] {
     t1Images.forEach((img, idx) => {
         rewards.push({
             id: generateId(),
-            name: `Legendary Weapon ${idx + 1}`,
+            name: extractNameFromPath(img),
             image: img,
             tier: 1,
             minRoll: 0, cost: 0,
@@ -146,7 +236,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 try {
                     const cloudData = await fetchDataFromSupabase();
                     if (cloudData) {
-                        currentData = { ...cloudData, inventory: cloudData.inventory || [] }; // Cloud takes priority
+                        // Merge inventories safely
+                        const localInv = currentData.inventory || [];
+                        const cloudInv = cloudData.inventory || [];
+                        const mergedInvMap = new Map();
+                        // Local first
+                        localInv.forEach(i => mergedInvMap.set(i.id, i));
+                        // Cloud second (priority)
+                        cloudInv.forEach(i => mergedInvMap.set(i.id, i));
+
+                        const mergedInv = Array.from(mergedInvMap.values()).sort((a: any, b: any) =>
+                            new Date(b.acquiredAt).getTime() - new Date(a.acquiredAt).getTime()
+                        );
+
+                        currentData = { ...cloudData, inventory: mergedInv };
                     }
                 } catch (error) {
                     console.error('Failed to load from Supabase:', error);
@@ -530,7 +633,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (isSupabaseConfigured()) {
             addCasinoGameHistory(historyEntry);
             addLogEntry(newLog);
-            // We are NOT syncing inventory to supabase yet as per plan, only local
+            saveInventoryItemToSupabase(newInventoryItem);
         }
 
         setData(prev => ({
@@ -595,6 +698,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         if (isSupabaseConfigured()) {
             addLogEntry(newLog);
+            itemsToRemove.forEach(item => deleteInventoryItemFromSupabase(item.id));
+            saveInventoryItemToSupabase(newItem);
         }
 
         setData(prev => ({
