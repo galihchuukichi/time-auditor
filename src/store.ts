@@ -119,6 +119,10 @@ export function loadData(): AppData {
             if (!loadedData.inventory) {
                 loadedData.inventory = [];
             }
+            // Ensure currentPoints is a valid number
+            if (typeof loadedData.currentPoints !== 'number' || isNaN(loadedData.currentPoints)) {
+                loadedData.currentPoints = 0;
+            }
             return loadedData;
         }
     } catch (e) {
@@ -147,3 +151,33 @@ export function generateId(): string {
         return v.toString(16);
     });
 }
+
+export const TIER_1_AURAS: Record<string, string> = {
+    "Lorenzo de' Medici": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
+    "Nathan Mayer Rothschild": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
+    "Jacob Fugger": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
+    "Deddy Corbuzier": "bg-gradient-to-br from-blue-900 via-blue-950 to-white",
+    "Timothy Ronald": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
+    "Bennix": "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600",
+    "Andrew Susanto": "bg-gradient-to-br from-white via-gray-100 to-gray-200",
+    "Donald Trump": "bg-gradient-to-br from-red-600 via-white to-blue-600",
+    "Putin": "bg-gradient-to-br from-red-900 via-red-950 to-black",
+    "Lee Kuan Yew": "bg-gradient-to-br from-white via-gray-400 to-black",
+    "习近平": "bg-gradient-to-br from-red-600 via-red-500 to-red-700",
+    "L": "bg-gradient-to-br from-black via-gray-500 to-white",
+    "Nezu Chuukichi": "bg-gradient-to-br from-cyan-500 via-blue-500 to-[#995e5d]",
+    "Thick Face Black Heart": "bg-gradient-to-br from-black via-gray-900 to-gray-600",
+    "Saitama": "bg-gradient-to-br from-black via-red-900 to-red-600",
+    "Tatsumaki": "bg-gradient-to-br from-black via-green-900 to-green-500",
+    "Kiyotaka Ayanokōji": "bg-gradient-to-br from-red-600 via-orange-500 to-orange-400",
+    "Tommy Shelby": "bg-gradient-to-br from-black via-gray-800 to-gray-600",
+    "Qin Feng": "bg-gradient-to-br from-white via-red-500 to-yellow-500",
+    "Sherlock Holmes": "bg-gradient-to-br from-black via-gray-700 to-white",
+};
+
+export const getLegendaryAuraClass = (name: string): string | null => {
+    for (const key in TIER_1_AURAS) {
+        if (name.includes(key)) return TIER_1_AURAS[key];
+    }
+    return null;
+};

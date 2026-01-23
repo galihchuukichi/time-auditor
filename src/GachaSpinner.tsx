@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CasinoReward } from './store';
+import { getLegendaryAuraClass } from './store';
 
 interface GachaSpinnerProps {
     rewards: CasinoReward[];
@@ -137,24 +138,28 @@ export function GachaSpinner({ rewards, isSpinning, winningReward, onComplete }:
             >
                 {displayItems.map((item, idx) => {
                     const isLegendary = item.tier === 1;
+                    const legendaryAura = isLegendary ? getLegendaryAuraClass(item.name) : null;
+                    const auraClass = legendaryAura || 'bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600';
 
                     if (isLegendary) {
                         return (
                             <div
                                 key={`${item.id}-${idx}`}
-                                className="flex-shrink-0 w-[100px] h-[100px] rounded flex flex-col items-center justify-center p-1 relative overflow-hidden group"
-                                style={{
-                                    background: 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) border-box padding-box, linear-gradient(135deg, #FFD700, rgb(0, 0, 0), #FFD700) border-box rgb(0, 0, 0)',
-                                    border: '1px solid transparent',
-                                    boxShadow: 'rgba(255, 215, 0, 0.4) 0px 0px 12px, rgba(255, 215, 0, 0.2) 0px 1px 0px inset'
-                                }}
+                                className="flex-shrink-0 w-[100px] h-[100px] rounded flex flex-col items-center justify-center p-1 relative overflow-hidden group border border-yellow-500/50"
                             >
-                                <div className="absolute inset-0 animate-shimmer-premium" style={{
-                                    background: 'linear-gradient(45deg, transparent 20%, rgba(255, 215, 0, 0.3) 50%, transparent 80%)',
-                                    zIndex: 0
+                                <div className="absolute inset-0 z-0 bg-gray-950">
+                                    <div className="fluid-aura-container">
+                                        <div className={`fluid-aura-layer ${auraClass}`}></div>
+                                        <div className={`fluid-aura-layer ${auraClass}`}></div>
+                                        <div className="fluid-aura-layer"></div>
+                                    </div>
+                                </div>
+
+                                <div className="absolute inset-0 animate-shimmer-premium z-10 opacity-30" style={{
+                                    background: 'linear-gradient(45deg, transparent 20%, rgba(255, 215, 0, 0.3) 50%, transparent 80%)'
                                 }}></div>
 
-                                <div className="relative z-10 w-full h-full flex items-center justify-center">
+                                <div className="relative z-20 w-full h-full flex items-center justify-center">
                                     <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
                                 </div>
                             </div>

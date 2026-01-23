@@ -601,51 +601,80 @@ textarea:focus {
 }
 
 /* Aura Animations */
-@keyframes aura-flow {
-    0% {
-        background-position: 0% 50%;
-        filter: brightness(100%) saturate(100%);
-    }
-
-    50% {
-        background-position: 100% 50%;
-        filter: brightness(130%) saturate(120%);
-    }
-
-    100% {
-        background-position: 0% 50%;
-        filter: brightness(100%) saturate(100%);
-    }
+.fluid-aura-container {
+    position: absolute;
+    inset: -25%;
+    width: 150%;
+    height: 150%;
+    filter: blur(8px) contrast(200%);
+    pointer-events: none;
+    z-index: 0;
+    mix-blend-mode: screen;
+    opacity: 0.9;
 }
 
-.animate-aura {
-    background-size: 200% 200%;
-    animation: aura-flow 4s ease infinite;
-}
-
-.aura-flame-container {
+.fluid-aura-layer {
     position: absolute;
     inset: 0;
-    overflow: hidden;
+    border-radius: 40%;
+    /* Background is expected to be provided by utility classes like bg-gradient-to-br... */
+    animation: fluid-rotate 10s infinite linear;
+    opacity: 0.8;
 }
 
-.aura-flame-container::before {
-    content: '';
-    position: absolute;
-    inset: -50%;
-    background: inherit;
-    filter: blur(20px);
-    opacity: 0.5;
-    animation: flame-rotate 8s linear infinite;
+.fluid-aura-layer:nth-child(1) {
+    animation-duration: 8s;
+    transform-origin: 45% 55%;
 }
 
-@keyframes flame-rotate {
+.fluid-aura-layer:nth-child(2) {
+    animation-duration: 6s;
+    animation-direction: reverse;
+    transform-origin: 55% 45%;
+    border-radius: 45%;
+    filter: brightness(1.2);
+    /* For variety, slight offset or scale to second layer is handled by animation */
+}
+
+.fluid-aura-layer:nth-child(3) {
+    animation-duration: 12s;
+    transform-origin: 50% 50%;
+    border-radius: 35%;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.8), transparent 70%);
+    mix-blend-mode: overlay;
+}
+
+@keyframes fluid-rotate {
     0% {
-        transform: rotate(0deg);
+        transform: rotate(0deg) scale(1) translate(0, 0);
+    }
+
+    33% {
+        transform: rotate(120deg) scale(1.1) translate(2%, -2%);
+    }
+
+    66% {
+        transform: rotate(240deg) scale(0.95) translate(-2%, 2%);
     }
 
     100% {
-        transform: rotate(360deg);
+        transform: rotate(360deg) scale(1) translate(0, 0);
+    }
+}
+
+/* Premium Shimmer for additional detail */
+.animate-shimmer-premium {
+    animation: shimmer-premium 2.5s infinite linear;
+    background-size: 200% 200%;
+}
+
+@keyframes shimmer-premium {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
     }
 }
 

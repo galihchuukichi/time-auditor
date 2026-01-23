@@ -1,38 +1,8 @@
 import { useState, useCallback } from 'react';
 import { Coins, History, Package, ArrowUpCircle, X, Trophy, Sparkles } from 'lucide-react';
 import { useData } from './DataContext';
-import type { InventoryItem } from './store';
+import { getLegendaryAuraClass, type InventoryItem } from './store';
 import { GachaSpinner } from './GachaSpinner';
-
-const TIER_1_AURAS: Record<string, string> = {
-    "Lorenzo de' Medici": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
-    "Nathan Mayer Rothschild": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
-    "Jacob Fugger": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
-    "Deddy Corbuzier": "bg-gradient-to-br from-blue-900 via-blue-950 to-white",
-    "Timothy Ronald": "bg-gradient-to-br from-purple-900 via-black to-purple-900",
-    "Bennix": "bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600",
-    "Andrew Susanto": "bg-gradient-to-br from-white via-gray-100 to-gray-200",
-    "Donald Trump": "bg-gradient-to-br from-red-600 via-white to-blue-600",
-    "Putin": "bg-gradient-to-br from-red-900 via-red-950 to-black",
-    "Lee Kuan Yew": "bg-gradient-to-br from-white via-gray-400 to-black",
-    "习近平": "bg-gradient-to-br from-red-600 via-red-500 to-red-700",
-    "L": "bg-gradient-to-br from-black via-gray-500 to-white",
-    "Nezu Chuukichi": "bg-gradient-to-br from-cyan-500 via-blue-500 to-[#995e5d]",
-    "Thick Face Black Heart": "bg-gradient-to-br from-black via-gray-900 to-gray-600",
-    "Saitama": "bg-gradient-to-br from-black via-red-900 to-red-600",
-    "Tatsumaki": "bg-gradient-to-br from-black via-green-900 to-green-500",
-    "Kiyotaka Ayanokōji": "bg-gradient-to-br from-red-600 via-orange-500 to-orange-400",
-    "Tommy Shelby": "bg-gradient-to-br from-black via-gray-800 to-gray-600",
-    "Qin Feng": "bg-gradient-to-br from-white via-red-500 to-yellow-500",
-    "Sherlock Holmes": "bg-gradient-to-br from-black via-gray-700 to-white",
-};
-
-const getAuraClass = (name: string) => {
-    for (const key in TIER_1_AURAS) {
-        if (name.includes(key)) return TIER_1_AURAS[key] + " animate-aura";
-    }
-    return null;
-};
 
 export function Casino() {
     const { data, playGacha, tradeUp } = useData();
@@ -104,7 +74,7 @@ export function Casino() {
                     <div className="text-right">
                         <div className="flex items-center gap-2 text-[var(--color-highlight)]">
                             <Coins className="w-5 h-5" />
-                            <span className="text-2xl font-bold">{data.currentPoints.toFixed(2)}</span>
+                            <span className="text-2xl font-bold">{(data.currentPoints || 0).toFixed(2)}</span>
                         </div>
                         <p className="text-xs text-[var(--color-text-muted)]">Your Points</p>
                     </div>
@@ -128,14 +98,23 @@ export function Casino() {
                     {!isSpinning && winningResult && (
                         <div className="text-center animate-bounce-in">
                             <p className="text-lg font-bold text-[var(--color-success)]">You Won!</p>
-                            <div className="w-32 h-32 my-2 relative">
+                            <div className="w-32 h-32 my-2 relative flex items-center justify-center">
+                                {winningResult.tier === 1 && (
+                                    <div className="absolute inset-0 z-0 scale-150 opacity-80">
+                                        <div className="fluid-aura-container">
+                                            <div className={`fluid-aura-layer ${getLegendaryAuraClass(winningResult.reward.name) || 'bg-yellow-500'}`}></div>
+                                            <div className={`fluid-aura-layer ${getLegendaryAuraClass(winningResult.reward.name) || 'bg-yellow-500'}`}></div>
+                                            <div className="fluid-aura-layer"></div>
+                                        </div>
+                                    </div>
+                                )}
                                 <img
                                     src={winningResult.reward.image}
                                     alt={winningResult.reward.name}
-                                    className="w-full h-full object-contain drop-shadow-lg"
+                                    className={`w-full h-full object-contain drop-shadow-lg relative z-10`}
                                 />
                             </div>
-                            <p className="font-semibold">{winningResult.reward.name}</p>
+                            <p className="font-semibold relative z-10">{winningResult.reward.name}</p>
                             <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase
                                 ${winningResult.tier === 1 ? 'bg-yellow-900 text-yellow-400' : ''}
                                 ${winningResult.tier === 2 ? 'bg-purple-900 text-purple-400' : ''}
@@ -218,7 +197,7 @@ export function Casino() {
                     </div>
 
                     {/* T2 -> T1 */}
-                    <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg flex flex-col items-center text-center borderBorder-yellow-500/30">
+                    <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg flex flex-col items-center text-center border border-yellow-500/30">
                         <h4 className="font-bold text-yellow-400 mb-2">Get Legendary (Tier 1)</h4>
                         <p className="text-sm text-[var(--color-text-muted)] mb-4">Trade 12 Tier 2 Items</p>
                         <div className="mb-4 text-2xl font-bold">
@@ -252,6 +231,7 @@ export function Casino() {
                             const isLegendary = item.tier === 1;
                             const isRare = item.tier === 2;
                             const isUncommon = item.tier === 3;
+                            const legendaryAura = isLegendary ? getLegendaryAuraClass(item.name) : null;
 
                             // Dynamic styles based on tier
                             let styles = {
@@ -303,11 +283,13 @@ export function Casino() {
                                 >
                                     {/* Background Image/Aura Layer - Full Bleed */}
                                     <div className="absolute inset-0 z-0 bg-gray-950">
-                                        {item.tier === 1 && getAuraClass(item.name) ? (
+                                        {isLegendary && legendaryAura ? (
                                             <div className="absolute inset-0 w-full h-full overflow-hidden">
-                                                <div className={`absolute inset-0 ${getAuraClass(item.name)}`}></div>
-                                                {/* Dynamic Flame Element */}
-                                                <div className="aura-flame-container mix-blend-screen opacity-70"></div>
+                                                <div className="fluid-aura-container">
+                                                    <div className={`fluid-aura-layer ${legendaryAura}`}></div>
+                                                    <div className={`fluid-aura-layer ${legendaryAura}`}></div>
+                                                    <div className="fluid-aura-layer"></div>
+                                                </div>
                                             </div>
                                         ) : null}
 
@@ -316,7 +298,7 @@ export function Casino() {
                                                 src={item.image}
                                                 alt={item.name}
                                                 className={`w-full h-full transition-transform duration-700 group-hover:scale-110 
-                                                    ${item.tier === 1 && getAuraClass(item.name) ? 'object-contain p-2 relative z-10 drop-shadow-2xl' : 'object-cover'}
+                                                    ${isLegendary ? 'object-contain p-2 relative z-10 drop-shadow-2xl' : 'object-cover'}
                                                 `}
                                             />
                                         ) : (
@@ -414,7 +396,7 @@ export function Casino() {
                             <div className="relative w-48 h-48 mb-6 group perspective-1000">
                                 {/* Glow Effect */}
                                 <div className={`absolute inset-0 rounded-xl blur-xl opacity-75 
-                                    ${rewardModal.item.tier === 1 ? (getAuraClass(rewardModal.item.name) || 'bg-yellow-500') : ''}
+                                    ${rewardModal.item.tier === 1 ? (getLegendaryAuraClass(rewardModal.item.name) || 'bg-yellow-500') : ''}
                                     ${rewardModal.item.tier === 2 ? 'bg-purple-500' : ''}
                                     ${rewardModal.item.tier === 3 ? 'bg-blue-500' : ''}
                                     ${rewardModal.item.tier === 4 ? 'bg-gray-500' : ''}
@@ -423,17 +405,20 @@ export function Casino() {
 
                                 <div className="relative w-full h-full rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl transform transition-transform duration-500 hover:scale-105 hover:rotate-2 bg-gray-900">
                                     {/* Inner Aura for Legendaries */}
-                                    {rewardModal.item.tier === 1 && getAuraClass(rewardModal.item.name) && (
-                                        <>
-                                            <div className={`absolute inset-0 ${getAuraClass(rewardModal.item.name)} opacity-80`}></div>
-                                            <div className="absolute inset-0 aura-flame-container opacity-50 mix-blend-screen"></div>
-                                        </>
+                                    {rewardModal.item.tier === 1 && getLegendaryAuraClass(rewardModal.item.name) && (
+                                        <div className="absolute inset-0 overflow-hidden">
+                                            <div className="fluid-aura-container">
+                                                <div className={`fluid-aura-layer ${getLegendaryAuraClass(rewardModal.item.name)}`}></div>
+                                                <div className={`fluid-aura-layer ${getLegendaryAuraClass(rewardModal.item.name)}`}></div>
+                                                <div className="fluid-aura-layer"></div>
+                                            </div>
+                                        </div>
                                     )}
 
                                     <img
                                         src={rewardModal.item.image}
                                         alt={rewardModal.item.name}
-                                        className={`w-full h-full ${rewardModal.item.tier === 1 && getAuraClass(rewardModal.item.name) ? 'object-contain p-4 relative z-10' : 'object-cover'}`}
+                                        className={`w-full h-full ${rewardModal.item.tier === 1 ? 'object-contain p-4 relative z-10' : 'object-cover'}`}
                                     />
                                     {/* Shimmer overlay */}
                                     <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity z-20"></div>

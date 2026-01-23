@@ -243,7 +243,7 @@ export function Dashboard() {
             <div className="card text-center">
                 <p className="text-[var(--color-text-muted)] text-sm mb-2">Current Points</p>
                 <p className={`text-5xl font-bold ${data.currentPoints >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-highlight)]'}`}>
-                    {data.currentPoints.toFixed(2)}
+                    {(data.currentPoints || 0).toFixed(2)}
                 </p>
             </div>
 
@@ -351,7 +351,7 @@ export function Dashboard() {
                                 </div>
                                 {log.pointsChange !== undefined && log.pointsChange !== 0 && (
                                     <span className={`font-semibold ${log.pointsChange > 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-highlight)]'}`}>
-                                        {log.pointsChange > 0 ? '+' : ''}{log.pointsChange.toFixed(2)}
+                                        {log.pointsChange > 0 ? '+' : ''}{(log.pointsChange || 0).toFixed(2)}
                                     </span>
                                 )}
                             </div>
@@ -367,7 +367,7 @@ export function Dashboard() {
                                 </div>
                                 {log.pointsChange !== undefined && log.pointsChange !== 0 && (
                                     <span className={`font-semibold ${log.pointsChange > 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-highlight)]'}`}>
-                                        {log.pointsChange > 0 ? '+' : ''}{log.pointsChange.toFixed(2)}
+                                        {log.pointsChange > 0 ? '+' : ''}{(log.pointsChange || 0).toFixed(2)}
                                     </span>
                                 )}
                             </div>
