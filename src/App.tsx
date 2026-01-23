@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, ListTodo, ShoppingBag, Settings as SettingsIcon, Bell, Cloud, HardDrive, Dice6, Trophy, Cog } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Settings as SettingsIcon, Bell, Cloud, HardDrive, Dice6, Trophy, Cog, Calendar, ClipboardList } from 'lucide-react';
 import { DataProvider, useData } from './DataContext';
 import { TimerProvider, useTimer } from './TimerContext';
 import { Dashboard } from './Dashboard';
@@ -10,16 +10,20 @@ import { Casino } from './Casino';
 import { CasinoManager } from './CasinoManager';
 import { Settings } from './Settings';
 import { CharacterDisplay } from './CharacterDisplay';
+import { Quests } from './Quests';
+import { QuestManager } from './QuestManager';
 
-type Tab = 'dashboard' | 'activities' | 'shop' | 'manager' | 'casino' | 'casino-manager' | 'settings';
+type Tab = 'dashboard' | 'activities' | 'shop' | 'manager' | 'casino' | 'casino-manager' | 'quests' | 'quest-manager' | 'settings';
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-  { id: 'activities', label: 'Activities', icon: <ListTodo className="w-5 h-5" /> },
+  { id: 'quest-manager', label: 'Manage Quests', icon: <ClipboardList className="w-5 h-5" /> },
   { id: 'shop', label: 'Shop', icon: <ShoppingBag className="w-5 h-5" /> },
   { id: 'manager', label: 'Manage Shop', icon: <SettingsIcon className="w-5 h-5" /> },
   { id: 'casino', label: 'Casino', icon: <Dice6 className="w-5 h-5" /> },
   { id: 'casino-manager', label: 'Manage Casino', icon: <Trophy className="w-5 h-5" /> },
+  { id: 'quests', label: 'Quests', icon: <Calendar className="w-5 h-5" /> },
+  // { id: 'activities', ... } Removed
   { id: 'settings', label: 'Settings', icon: <Cog className="w-5 h-5" /> },
 ];
 
@@ -157,11 +161,13 @@ function AppContent() {
         {/* Page Content */}
         <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
           {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'activities' && <Activities />}
+          {/* {activeTab === 'activities' && <Activities />} REMOVED */}
           {activeTab === 'shop' && <Shop />}
           {activeTab === 'manager' && <ShopManager />}
           {activeTab === 'casino' && <Casino />}
           {activeTab === 'casino-manager' && <CasinoManager />}
+          {activeTab === 'quests' && <Quests />}
+          {activeTab === 'quest-manager' && <QuestManager />}
           {activeTab === 'settings' && <Settings />}
         </main>
 

@@ -69,7 +69,7 @@ export function Dashboard() {
     const [expandedLogs, setExpandedLogs] = useState(false);
 
     const visibleActivities = data.activities.filter(a => a.isVisible);
-    const rewards = visibleActivities.filter(a => a.type === 'reward');
+    // const rewards = visibleActivities.filter(a => a.type === 'reward'); // Replaced by Quests
     const punishments = visibleActivities.filter(a => a.type === 'punishment');
 
     const currentTimeSlot = getCurrentTimeSlot();
@@ -255,22 +255,32 @@ export function Dashboard() {
 
             {/* Quick Log Activities */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Rewards */}
+                {/* Quests (formerly Rewards) */}
                 <div className="card">
-                    <h3 className="text-lg font-semibold mb-4 text-[var(--color-success)]">🏆 Rewards</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-[var(--color-success)]">📜 Active Quests</h3>
                     <div className="space-y-2">
-                        {rewards.length === 0 ? (
-                            <p className="text-[var(--color-text-muted)] text-sm">No visible rewards. Add some in Activities tab.</p>
+                        {data.quests?.filter(q => !q.isCompleted && q.type === 'daily').length === 0 ? (
+                            <p className="text-[var(--color-text-muted)] text-sm">No active daily quests.</p>
                         ) : (
-                            rewards.map(activity => (
-                                <button
-                                    key={activity.id}
-                                    onClick={() => handleLogActivity(activity.id)}
-                                    className={`w-full text-left px-4 py-3 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-accent)] transition-all flex justify-between items-center ${justLogged === activity.id ? 'ring-2 ring-[var(--color-success)]' : ''}`}
+                            data.quests?.filter(q => !q.isCompleted && q.type === 'daily').slice(0, 5).map(quest => (
+                                <div
+                                    key={quest.id}
+                                    className="w-full text-left px-4 py-3 rounded-lg bg-[var(--color-surface)] flex justify-between items-center border border-gray-800"
                                 >
-                                    <span>{activity.name}</span>
-                                    <span className="text-[var(--color-success)] font-semibold">+{activity.points.toFixed(2)}</span>
-                                </button>
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-sm text-gray-200">{quest.title}</span>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            <div className="bg-black/40 w-16 h-1.5 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-blue-500"
+                                                    style={{ width: `${Math.min(100, (quest.currentValue / quest.targetValue) * 100)}%` }}
+                                                />
+                                            </div>
+                                            <span>{quest.currentValue}/{quest.targetValue}</span>
+                                        </div>
+                                    </div>
+                                    <span className="text-[var(--color-success)] font-bold text-xs">+{quest.points}</span>
+                                </div>
                             ))
                         )}
                     </div>

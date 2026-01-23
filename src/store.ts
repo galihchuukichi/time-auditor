@@ -78,6 +78,22 @@ export interface AppData {
     inventory: InventoryItem[];
     lastDailyRefresh?: string; // Optional for backward compatibility
     selectedCharacterId: string | null;
+    quests: Quest[];
+    lastDailyBonusClaimed: string | null; // ISO Date of the last day bonus was claimed
+}
+
+export interface Quest {
+    id: string;
+    title: string;
+    description?: string;
+    points: number;
+    type: 'daily' | 'weekly';
+    recurrence: 'once' | 'repeat';
+    isCompleted: boolean;
+    lastCompletedAt?: string; // ISO String
+    targetValue: number; // Default 1
+    currentValue: number; // Default 0
+    unit?: string; // e.g. "times", "km"
 }
 
 const STORAGE_KEY = 'time-auditor-data';
@@ -109,6 +125,8 @@ const defaultData: AppData = {
     inventory: [],
     lastDailyRefresh: '',
     selectedCharacterId: null,
+    quests: [],
+    lastDailyBonusClaimed: null,
 };
 
 export function loadData(): AppData {
@@ -127,6 +145,20 @@ export function loadData(): AppData {
             }
             if (loadedData.selectedCharacterId === undefined) {
                 loadedData.selectedCharacterId = null;
+            }
+            if (!loadedData.quests) {
+                loadedData.quests = [];
+            } else {
+                // Migration for existing quests
+                loadedData.quests = loadedData.quests.map((q: any) => ({
+                    ...q,
+                    targetValue: q.targetValue ?? 1,
+                    currentValue: q.currentValue ?? (q.isCompleted ? 1 : 0),
+                    unit: q.unit ?? 'times'
+                }));
+            }
+            if (loadedData.lastDailyBonusClaimed === undefined) {
+                loadedData.lastDailyBonusClaimed = null;
             }
             return loadedData;
         }

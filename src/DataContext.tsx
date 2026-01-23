@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { loadData, saveData, generateId, PLANNING_POINTS, AUDITING_POINTS, GACHA_COST } from './store';
-import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory, InventoryItem } from './store';
+import type { AppData, Activity, ShopItem, TimelineEntry, LogEntry, CasinoReward, CasinoGameHistory, InventoryItem, Quest } from './store';
 import {
     isSupabaseConfigured,
     fetchDataFromSupabase,
@@ -212,11 +212,39 @@ interface DataContextType {
     deleteCasinoReward: (id: string) => void;
     playGacha: () => { reward: InventoryItem; won: boolean; tier: number } | null;
     tradeUp: (targetTier: number) => { success: boolean; message: string; newItem?: InventoryItem };
+    // Quests
+    addQuest: (quest: Omit<Quest, 'id' | 'isCompleted'>) => void;
+    updateQuest: (id: string, updates: Partial<Quest>) => void;
+    deleteQuest: (id: string) => void;
+    updateQuestProgress: (id: string, value: number) => void;
+    claimDailyBonus: () => void;
     // Backup
     exportData: () => void;
     importData: (jsonString: string) => boolean;
     setData: React.Dispatch<React.SetStateAction<AppData>>;
 }
+
+// Time Utils for WIB (UTC+7)
+function getWIBDate(date: Date = new Date()): Date {
+    const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+    return new Date(utc + (3600000 * 7));
+}
+
+
+function getWIBDateString(date: Date = new Date()): string {
+    const wib = getWIBDate(date);
+    return wib.toISOString().split('T')[0];
+}
+
+function getStartOfWeekWIB(date: Date = new Date()): Date {
+    const wib = getWIBDate(date);
+    const day = wib.getDay(); // 0 (Sun) to 6 (Sat)
+    const diff = wib.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    wib.setDate(diff);
+    wib.setHours(0, 0, 0, 0);
+    return wib;
+}
+
 
 const DataContext = createContext<DataContextType | null>(null);
 
@@ -280,14 +308,61 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setData(currentData);
             saveData(currentData); // Save to local
 
+            // Quest Resets Logic
+            const now = new Date();
+            const wibDateStr = getWIBDateString(now);
+            const startOfWeekWIB = getStartOfWeekWIB(now).getTime();
+
+            const updatedQuests = (currentData.quests || []).map(q => {
+                if (!q.lastCompletedAt) return q;
+
+                const lastCompleted = new Date(q.lastCompletedAt);
+                // Convert lastCompleted to WIB to check day correctness? 
+                // Any completion from "Before Today 00:00 WIB" should be reset for Daily
+
+                // Effective logic:
+                // If Daily: Reset if lastCompletedAt < StartOfTodayWIB?
+                // Actually, just compare Date Strings in WIB.
+
+                const lastCompletedWIBStr = getWIBDateString(lastCompleted);
+
+                if (q.type === 'daily' && q.recurrence === 'repeat') {
+                    if (lastCompletedWIBStr !== wibDateStr) {
+                        return { ...q, isCompleted: false };
+                    }
+                }
+
+                if (q.type === 'weekly' && q.recurrence === 'repeat') {
+                    // Check if last completed was before this week's start
+                    const lastCompletedWIB = getWIBDate(lastCompleted);
+                    if (lastCompletedWIB.getTime() < startOfWeekWIB) {
+                        return { ...q, isCompleted: false };
+                    }
+                }
+
+                return q;
+            });
+
+            // Check Daily Bonus Reset
+            // If we claimed it "Before Today", we reset the claim status?
+            // Wait, we just store "lastDailyBonusClaimed" date string (ISO).
+            // If it's not today's date (WIB wise), then we can claim again.
+            // We don't need to "reset" a boolean, we just check the date against today.
+
+            if (JSON.stringify(updatedQuests) !== JSON.stringify(currentData.quests)) {
+                currentData.quests = updatedQuests;
+            }
+
+            setData(currentData);
+            saveData(currentData); // Save to local
+
             // Mark initialization as complete
             hasInitializedRef.current = true;
             setIsLoading(false);
 
-            // If we updated daily rewards, sync to Supabase (if connected)
-            if (isSupabaseConfigured() && currentData.lastDailyRefresh === today) {
-                // We might want to sync the whole object or just rewards. 
-                // syncDataToSupabase does the whole thing.
+            // If we updated daily rewards or quests, sync to Supabase (if connected)
+            if (isSupabaseConfigured()) {
+                // simple sync
                 syncDataToSupabase(currentData);
             }
         }
@@ -722,6 +797,162 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { success: true, message: `Successfully traded up for ${newItem.name}!`, newItem };
     }, [data.inventory, data.casinoRewards]);
 
+
+    // Quest Functions
+    const addQuest = useCallback((quest: Omit<Quest, 'id' | 'isCompleted'>) => {
+        const newQuest: Quest = {
+            ...quest,
+            id: generateId(),
+            isCompleted: false,
+            currentValue: 0,
+            targetValue: quest.targetValue || 1, // Ensure defaults
+            unit: quest.unit || 'times'
+        };
+        setData(prev => ({
+            ...prev,
+            quests: [...(prev.quests || []), newQuest]
+        }));
+    }, []);
+
+    const updateQuest = useCallback((id: string, updates: Partial<Quest>) => {
+        setData(prev => ({
+            ...prev,
+            quests: (prev.quests || []).map(q => q.id === id ? { ...q, ...updates } : q)
+        }));
+    }, []);
+
+    const deleteQuest = useCallback((id: string) => {
+        setData(prev => ({
+            ...prev,
+            quests: (prev.quests || []).filter(q => q.id !== id)
+        }));
+    }, []);
+
+    const updateQuestProgress = useCallback((id: string, newValue: number) => {
+        setData(prev => {
+            const quest = prev.quests.find(q => q.id === id);
+            if (!quest) return prev;
+
+            const target = quest.targetValue || 1;
+
+            // Check previous state
+            const wasCompleted = quest.isCompleted;
+            const isNowCompleted = newValue >= target;
+
+            // Only update points if completion status CHANGES
+            let pointsChange = 0;
+            if (!wasCompleted && isNowCompleted) {
+                pointsChange = quest.points;
+            } else if (wasCompleted && !isNowCompleted) {
+                pointsChange = -quest.points;
+            }
+
+            // Update quest
+            const updatedQuests = prev.quests.map(q =>
+                q.id === id
+                    ? {
+                        ...q,
+                        currentValue: newValue,
+                        isCompleted: isNowCompleted,
+                        lastCompletedAt: isNowCompleted ? new Date().toISOString() : (wasCompleted ? undefined : q.lastCompletedAt)
+                    }
+                    : q
+            );
+
+            // Log if status changed
+            let newLogs = [...(prev.logs || [])];
+            if (pointsChange !== 0) {
+                const newLog: LogEntry = {
+                    id: generateId(),
+                    message: `${pointsChange > 0 ? 'Completed' : 'Undo'}: Quest "${quest.title}"`,
+                    timestamp: new Date().toISOString(),
+                    type: 'activity',
+                    pointsChange: pointsChange
+                };
+                newLogs.push(newLog);
+            }
+
+            return {
+                ...prev,
+                quests: updatedQuests,
+                currentPoints: prev.currentPoints + pointsChange,
+                logs: newLogs
+            };
+        });
+    }, []);
+
+    const toggleQuestCompletion = useCallback((id: string) => {
+        setData(prev => {
+            const quest = prev.quests.find(q => q.id === id);
+            if (!quest) return prev;
+
+            const isNowCompleted = !quest.isCompleted;
+            let pointsChange = 0;
+
+            // Logic: 
+            // If marking complete -> Add points
+            // If marking incomplete -> Remove points (undo)
+            if (isNowCompleted) {
+                pointsChange = quest.points;
+            } else {
+                pointsChange = -quest.points;
+            }
+
+            // Side effect: Log it
+            const newLog: LogEntry = {
+                id: generateId(),
+                message: `${isNowCompleted ? 'Completed' : 'Undo'}: Quest "${quest.title}"`,
+                timestamp: new Date().toISOString(),
+                type: 'activity', // Using activity type for now
+                pointsChange: pointsChange
+            };
+
+            // This update is inside the state update, be careful with side-effects
+            // Actually 'logActivity' does both log and point update.
+            // But we are in a reducer-like pattern here.
+
+            // Let's do it cleanly:
+            const updatedQuests = prev.quests.map(q =>
+                q.id === id
+                    ? { ...q, isCompleted: isNowCompleted, lastCompletedAt: isNowCompleted ? new Date().toISOString() : undefined }
+                    : q
+            );
+
+            return {
+                ...prev,
+                quests: updatedQuests,
+                currentPoints: prev.currentPoints + pointsChange,
+                logs: [...(prev.logs || []), newLog]
+            };
+        });
+    }, []);
+
+    const claimDailyBonus = useCallback(() => {
+        setData(prev => {
+            const todayWIB = getWIBDateString(new Date());
+
+            // Double check validation
+            if (prev.lastDailyBonusClaimed === todayWIB) return prev;
+
+            const bonusPoints = 500;
+
+            const newLog: LogEntry = {
+                id: generateId(),
+                message: `🌟 Claimed Daily Quest Bonus!`,
+                timestamp: new Date().toISOString(),
+                type: 'activity',
+                pointsChange: bonusPoints
+            };
+
+            return {
+                ...prev,
+                lastDailyBonusClaimed: todayWIB,
+                currentPoints: prev.currentPoints + bonusPoints,
+                logs: [...(prev.logs || []), newLog]
+            };
+        });
+    }, []);
+
     // Backup functions
     const exportData = useCallback(() => {
         const dataStr = JSON.stringify(data, null, 2);
@@ -754,6 +985,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 casinoHistory: parsed.casinoHistory || [],
                 inventory: parsed.inventory || [],
                 selectedCharacterId: parsed.selectedCharacterId || null,
+                quests: parsed.quests || [],
+                lastDailyBonusClaimed: parsed.lastDailyBonusClaimed || null,
             };
 
             setData(newData);
@@ -793,6 +1026,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 deleteCasinoReward,
                 playGacha,
                 tradeUp,
+                addQuest,
+                updateQuest,
+                deleteQuest,
+                updateQuestProgress,
+                claimDailyBonus,
                 exportData,
                 importData,
                 setData,
