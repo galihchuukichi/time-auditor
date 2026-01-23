@@ -8,7 +8,18 @@ export function Quests() {
     const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
 
     // Group quests
-    const dailyQuests = (data.quests || []).filter(q => q.type === 'daily');
+    const todayWIB = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7));
+    const todayIndex = todayWIB.getDay(); // 0-6
+
+    const dailyQuests = (data.quests || []).filter(q => {
+        if (q.type !== 'daily') return false;
+        // Check days filter
+        if (q.daysOfWeek && q.daysOfWeek.length > 0 && !q.daysOfWeek.includes(todayIndex)) {
+            return false;
+        }
+        return true;
+    });
+
     const weeklyQuests = (data.quests || []).filter(q => q.type === 'weekly');
 
     const questsToShow = activeTab === 'daily' ? dailyQuests : weeklyQuests;
@@ -19,8 +30,8 @@ export function Quests() {
     const totalDailyCount = dailyQuestsForBonus.length;
 
     // Check if bonus is available
-    const todayWIB = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7)).toISOString().split('T')[0];
-    const isBonusClaimed = data.lastDailyBonusClaimed === todayWIB;
+    const todayWIBString = todayWIB.toISOString().split('T')[0];
+    const isBonusClaimed = data.lastDailyBonusClaimed === todayWIBString;
     const canClaimBonus = totalDailyCount > 0 && completedDailyCount === totalDailyCount && !isBonusClaimed;
 
     // Reset Countdown

@@ -94,6 +94,7 @@ export interface Quest {
     targetValue: number; // Default 1
     currentValue: number; // Default 0
     unit?: string; // e.g. "times", "km"
+    daysOfWeek?: number[]; // 0=Sunday, 1=Monday... If empty/undefined, active every day.
 }
 
 const STORAGE_KEY = 'time-auditor-data';

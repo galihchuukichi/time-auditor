@@ -225,7 +225,7 @@ interface DataContextType {
 }
 
 // Time Utils for WIB (UTC+7)
-function getWIBDate(date: Date = new Date()): Date {
+export function getWIBDate(date: Date = new Date()): Date {
     const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
     return new Date(utc + (3600000 * 7));
 }

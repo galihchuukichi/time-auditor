@@ -16,7 +16,8 @@ export function QuestManager() {
         type: 'daily',
         recurrence: 'repeat',
         targetValue: 1,
-        unit: 'times'
+        unit: 'times',
+        daysOfWeek: []
     });
 
     const resetForm = () => {
@@ -27,7 +28,8 @@ export function QuestManager() {
             type: 'daily',
             recurrence: 'repeat',
             targetValue: 1,
-            unit: 'times'
+            unit: 'times',
+            daysOfWeek: []
         });
         setIsAdding(false);
         setEditingId(null);
@@ -41,7 +43,8 @@ export function QuestManager() {
             type: quest.type,
             recurrence: quest.recurrence,
             targetValue: quest.targetValue || 1,
-            unit: quest.unit || 'times'
+            unit: quest.unit || 'times',
+            daysOfWeek: quest.daysOfWeek || []
         });
         setEditingId(quest.id);
         setIsAdding(true);
@@ -141,6 +144,47 @@ export function QuestManager() {
                                 />
                             </div>
                         </div>
+
+                        {formData.recurrence === 'repeat' && formData.type === 'daily' && (
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium mb-2">Repeat On Days</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => {
+                                        const isSelected = !formData.daysOfWeek || formData.daysOfWeek.length === 0 || formData.daysOfWeek.includes(index);
+
+                                        return (
+                                            <button
+                                                key={index}
+                                                type="button"
+                                                onClick={() => {
+                                                    const current = formData.daysOfWeek || [0, 1, 2, 3, 4, 5, 6];
+                                                    let newDays;
+                                                    if (current.includes(index)) {
+                                                        // Remove
+                                                        newDays = current.filter(d => d !== index);
+                                                    } else {
+                                                        // Add
+                                                        newDays = [...current, index];
+                                                    }
+                                                    setFormData({ ...formData, daysOfWeek: newDays });
+                                                }}
+                                                className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${isSelected
+                                                    ? 'bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)] scale-110'
+                                                    : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-yellow-500/50'
+                                                    }`}
+                                            >
+                                                {day}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                    {!formData.daysOfWeek || formData.daysOfWeek.length === 0 || formData.daysOfWeek.length === 7
+                                        ? "Repeats every day"
+                                        : "Repeats only on marked days"}
+                                </p>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
