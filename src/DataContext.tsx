@@ -131,7 +131,7 @@ function generateDailyRewards(): CasinoReward[] {
 
     // Tier 2 (Rare)
     const t2Images = getRandomItems(TIER_IMAGES.t2, 2);
-    t2Images.forEach((img, idx) => {
+    t2Images.forEach((img) => {
         rewards.push({
             id: generateId(),
             name: extractNameFromPath(img),
@@ -144,7 +144,7 @@ function generateDailyRewards(): CasinoReward[] {
 
     // Tier 3 (Uncommon)
     const t3Images = getRandomItems(TIER_IMAGES.t3, 3);
-    t3Images.forEach((img, idx) => {
+    t3Images.forEach((img) => {
         rewards.push({
             id: generateId(),
             name: extractNameFromPath(img),
@@ -157,7 +157,7 @@ function generateDailyRewards(): CasinoReward[] {
 
     // Tier 4 (Common)
     const t4Images = getRandomItems(TIER_IMAGES.t4, 5);
-    t4Images.forEach((img, idx) => {
+    t4Images.forEach((img) => {
         rewards.push({
             id: generateId(),
             name: extractNameFromPath(img),
@@ -171,7 +171,7 @@ function generateDailyRewards(): CasinoReward[] {
     // Tier 1 (Legendary - Trade Up Only)
     // We add them to the pool so they exist for Trade Up, but they retain 0% drop rate in playGacha
     const t1Images = getRandomItems(TIER_IMAGES.t1, 1);
-    t1Images.forEach((img, idx) => {
+    t1Images.forEach((img) => {
         rewards.push({
             id: generateId(),
             name: extractNameFromPath(img),

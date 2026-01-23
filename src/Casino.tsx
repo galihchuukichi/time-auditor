@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Coins, History, Package, ArrowUpCircle } from 'lucide-react';
+import { Coins, History, Package, ArrowUpCircle, X, Trophy, Sparkles } from 'lucide-react';
 import { useData } from './DataContext';
 import type { InventoryItem } from './store';
 import { GachaSpinner } from './GachaSpinner';
@@ -9,6 +9,7 @@ export function Casino() {
     const [isSpinning, setIsSpinning] = useState(false);
     const [winningResult, setWinningResult] = useState<{ reward: InventoryItem; won: boolean; tier: number } | null>(null);
     const [tradeMessage, setTradeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [rewardModal, setRewardModal] = useState<{ item: InventoryItem; title: string; subtext: string } | null>(null);
 
     const handleSpin = useCallback(() => {
         if (isSpinning) return;
@@ -27,11 +28,21 @@ export function Casino() {
 
     const handleTradeUp = (targetTier: number) => {
         const result = tradeUp(targetTier);
-        setTradeMessage({
-            type: result.success ? 'success' : 'error',
-            text: result.message
-        });
-        setTimeout(() => setTradeMessage(null), 3000);
+        if (result.success && result.newItem) {
+            // Show exciting popup!
+            setRewardModal({
+                item: result.newItem,
+                title: "Trade Successful!",
+                subtext: result.message
+            });
+            setTradeMessage(null);
+        } else {
+            setTradeMessage({
+                type: 'error',
+                text: result.message
+            });
+            setTimeout(() => setTradeMessage(null), 3000);
+        }
     };
 
     // Group inventory for display if needed, but per requirement "not merge", so we show all.
@@ -331,6 +342,92 @@ export function Casino() {
                     ))}
                 </div>
             </div>
+            {/* Reward Popup Modal */}
+            {rewardModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="relative w-full max-w-sm bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-[var(--color-border)] rounded-2xl p-8 shadow-2xl animate-scale-in overflow-hidden">
+
+                        {/* Background FX */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--color-highlight)_0%,_transparent_70%)] opacity-10 pointer-events-none"></div>
+                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-[var(--color-highlight)] rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
+
+                        <button
+                            onClick={() => setRewardModal(null)}
+                            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors z-20"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="flex flex-col items-center text-center relative z-10">
+                            <div className="mb-2 text-[var(--color-highlight)] animate-bounce">
+                                <Trophy size={48} className="drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+                            </div>
+
+                            <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 mb-1 drop-shadow-sm">
+                                {rewardModal.title}
+                            </h2>
+
+                            <p className="text-gray-400 text-sm mb-6 max-w-[200px]">
+                                {rewardModal.subtext}
+                            </p>
+
+                            <div className="relative w-48 h-48 mb-6 group perspective-1000">
+                                {/* Glow Effect */}
+                                <div className={`absolute inset-0 rounded-xl blur-xl opacity-50 
+                                    ${rewardModal.item.tier === 1 ? 'bg-yellow-500' : ''}
+                                    ${rewardModal.item.tier === 2 ? 'bg-purple-500' : ''}
+                                    ${rewardModal.item.tier === 3 ? 'bg-blue-500' : ''}
+                                    ${rewardModal.item.tier === 4 ? 'bg-gray-500' : ''}
+                                    animate-pulse-ring
+                                `}></div>
+
+                                <div className="relative w-full h-full rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl transform transition-transform duration-500 hover:scale-105 hover:rotate-2">
+                                    <img
+                                        src={rewardModal.item.image}
+                                        alt={rewardModal.item.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                    {/* Shimmer overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                </div>
+
+                                {/* Floating sparkles */}
+                                <div className="absolute -top-4 -right-4 text-yellow-400 animate-pulse delay-75">
+                                    <Sparkles size={24} />
+                                </div>
+                                <div className="absolute -bottom-2 -left-2 text-yellow-200 animate-pulse delay-150">
+                                    <Sparkles size={16} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 w-full">
+                                <h3 className="text-xl font-bold text-white">{rewardModal.item.name}</h3>
+
+                                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
+                                    ${rewardModal.item.tier === 1 ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-500/30' : ''}
+                                    ${rewardModal.item.tier === 2 ? 'bg-purple-900/50 text-purple-400 border border-purple-500/30' : ''}
+                                    ${rewardModal.item.tier === 3 ? 'bg-blue-900/50 text-blue-400 border border-blue-500/30' : ''}
+                                    ${rewardModal.item.tier === 4 ? 'bg-gray-700/50 text-gray-300 border border-gray-500/30' : ''}
+                                `}>
+                                    <span>
+                                        {rewardModal.item.tier === 1 && 'Legendary'}
+                                        {rewardModal.item.tier === 2 && 'Rare'}
+                                        {rewardModal.item.tier === 3 && 'Uncommon'}
+                                        {rewardModal.item.tier === 4 && 'Common'}
+                                    </span>
+                                </div>
+
+                                <button
+                                    onClick={() => setRewardModal(null)}
+                                    className="w-full mt-4 btn btn-primary py-3 font-bold shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_30px_rgba(245,158,11,0.4)]"
+                                >
+                                    Awesome!
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
