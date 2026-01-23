@@ -207,35 +207,68 @@ export function Casino() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                        {sortedInventory.map((item) => (
-                            <div
-                                key={item.id}
-                                className={`
-                                    relative aspect-square flex flex-col items-center justify-center p-2 rounded-lg border bg-[var(--color-bg-secondary)]
-                                    ${item.tier === 1 ? 'border-yellow-400/50 hover:border-yellow-400' : ''}
-                                    ${item.tier === 2 ? 'border-purple-400/50 hover:border-purple-400' : ''}
-                                    ${item.tier === 3 ? 'border-blue-400/50 hover:border-blue-400' : ''}
-                                    ${item.tier === 4 ? 'border-gray-500/30 hover:border-gray-400' : ''}
-                                    transition-colors group
-                                `}
-                            >
-                                <div className="w-12 h-12 mb-1 flex items-center justify-center">
-                                    {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
-                                        <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
-                                    ) : (
-                                        <span className="text-3xl">{item.image}</span>
-                                    )}
+                        {sortedInventory.map((item) => {
+                            const isLegendary = item.tier === 1;
+
+                            if (isLegendary) {
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="relative aspect-square flex flex-col items-center justify-center p-2 rounded-lg group overflow-hidden"
+                                        style={{
+                                            background: 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) border-box padding-box, linear-gradient(135deg, #FFD700, rgb(0, 0, 0), #FFD700) border-box rgb(0, 0, 0)',
+                                            border: '1px solid transparent',
+                                            boxShadow: 'rgba(255, 215, 0, 0.4) 0px 0px 12px, rgba(255, 215, 0, 0.2) 0px 1px 0px inset'
+                                        }}
+                                    >
+                                        <div className="absolute inset-0 animate-shimmer-premium" style={{
+                                            background: 'linear-gradient(45deg, transparent 20%, rgba(255, 215, 0, 0.3) 50%, transparent 80%)',
+                                            zIndex: 0
+                                        }}></div>
+
+                                        <div className="relative z-10 w-12 h-12 mb-1 flex items-center justify-center">
+                                            {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
+                                                <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+                                            ) : (
+                                                <span className="text-3xl">{item.image}</span>
+                                            )}
+                                        </div>
+                                        <span className="relative z-10 text-[10px] w-full text-center truncate font-bold text-[#FFD700] uppercase tracking-wide font-mono">
+                                            {item.name}
+                                        </span>
+                                        <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FFD700] shadow-[0_0_8px_#FFD700]"></div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div
+                                    key={item.id}
+                                    className={`
+                                        relative aspect-square flex flex-col items-center justify-center p-2 rounded-lg border bg-[var(--color-bg-secondary)]
+                                        ${item.tier === 2 ? 'border-purple-400/50 hover:border-purple-400' : ''}
+                                        ${item.tier === 3 ? 'border-blue-400/50 hover:border-blue-400' : ''}
+                                        ${item.tier === 4 ? 'border-gray-500/30 hover:border-gray-400' : ''}
+                                        transition-colors group
+                                    `}
+                                >
+                                    <div className="w-12 h-12 mb-1 flex items-center justify-center">
+                                        {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
+                                            <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
+                                        ) : (
+                                            <span className="text-3xl">{item.image}</span>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] w-full text-center truncate font-medium">{item.name}</span>
+                                    <div className={`
+                                        absolute top-1 right-1 w-2 h-2 rounded-full
+                                        ${item.tier === 2 ? 'bg-purple-400' : ''}
+                                        ${item.tier === 3 ? 'bg-blue-400' : ''}
+                                        ${item.tier === 4 ? 'bg-gray-400' : ''}
+                                    `}></div>
                                 </div>
-                                <span className="text-[10px] w-full text-center truncate font-medium">{item.name}</span>
-                                <div className={`
-                                    absolute top-1 right-1 w-2 h-2 rounded-full
-                                    ${item.tier === 1 ? 'bg-yellow-400' : ''}
-                                    ${item.tier === 2 ? 'bg-purple-400' : ''}
-                                    ${item.tier === 3 ? 'bg-blue-400' : ''}
-                                    ${item.tier === 4 ? 'bg-gray-400' : ''}
-                                `}></div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

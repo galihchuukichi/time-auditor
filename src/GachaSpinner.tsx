@@ -135,34 +135,59 @@ export function GachaSpinner({ rewards, isSpinning, winningReward, onComplete }:
                 }}
                 onTransitionEnd={onComplete}
             >
-                {displayItems.map((item, idx) => (
-                    <div
-                        key={`${item.id}-${idx}`}
-                        className={`
-                            flex-shrink-0 w-[100px] h-[100px] 
-                            bg-gradient-to-b from-gray-800 to-gray-900
-                            border-b-4
-                            rounded flex flex-col items-center justify-center p-1
-                            shadow-lg relative overflow-hidden group
-                            ${item.tier === 1 ? 'border-yellow-500' : ''}
-                            ${item.tier === 2 ? 'border-purple-500' : ''}
-                            ${item.tier === 3 ? 'border-blue-500' : ''}
-                            ${item.tier === 4 ? 'border-gray-500' : ''}
-                        `}
-                    >
-                        {/* Background Splatter/Glow - Reduced opacity */}
-                        <div className={`absolute inset-0 opacity-10 
-                            ${item.tier === 1 ? 'bg-yellow-500' : ''}
-                            ${item.tier === 2 ? 'bg-purple-500' : ''}
-                            ${item.tier === 3 ? 'bg-blue-500' : ''}
-                            ${item.tier === 4 ? 'bg-gray-500' : ''}
-                        `}></div>
+                {displayItems.map((item, idx) => {
+                    const isLegendary = item.tier === 1;
 
-                        <div className="relative z-10 w-full h-full flex items-center justify-center">
-                            <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+                    if (isLegendary) {
+                        return (
+                            <div
+                                key={`${item.id}-${idx}`}
+                                className="flex-shrink-0 w-[100px] h-[100px] rounded flex flex-col items-center justify-center p-1 relative overflow-hidden group"
+                                style={{
+                                    background: 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) border-box padding-box, linear-gradient(135deg, #FFD700, rgb(0, 0, 0), #FFD700) border-box rgb(0, 0, 0)',
+                                    border: '1px solid transparent',
+                                    boxShadow: 'rgba(255, 215, 0, 0.4) 0px 0px 12px, rgba(255, 215, 0, 0.2) 0px 1px 0px inset'
+                                }}
+                            >
+                                <div className="absolute inset-0 animate-shimmer-premium" style={{
+                                    background: 'linear-gradient(45deg, transparent 20%, rgba(255, 215, 0, 0.3) 50%, transparent 80%)',
+                                    zIndex: 0
+                                }}></div>
+
+                                <div className="relative z-10 w-full h-full flex items-center justify-center">
+                                    <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div
+                            key={`${item.id}-${idx}`}
+                            className={`
+                                flex-shrink-0 w-[100px] h-[100px] 
+                                bg-gradient-to-b from-gray-800 to-gray-900
+                                border-b-4
+                                rounded flex flex-col items-center justify-center p-1
+                                shadow-lg relative overflow-hidden group
+                                ${item.tier === 2 ? 'border-purple-500' : ''}
+                                ${item.tier === 3 ? 'border-blue-500' : ''}
+                                ${item.tier === 4 ? 'border-gray-500' : ''}
+                            `}
+                        >
+                            {/* Background Splatter/Glow - Reduced opacity */}
+                            <div className={`absolute inset-0 opacity-10 
+                                ${item.tier === 2 ? 'bg-purple-500' : ''}
+                                ${item.tier === 3 ? 'bg-blue-500' : ''}
+                                ${item.tier === 4 ? 'bg-gray-500' : ''}
+                            `}></div>
+
+                            <div className="relative z-10 w-full h-full flex items-center justify-center">
+                                <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Overlay Gradient for Fade Effect - Stronger Vignette */}
