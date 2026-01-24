@@ -157,7 +157,7 @@ export function Casino() {
                     <button
                         onClick={handleSpin}
                         disabled={isSpinning || data.currentPoints < 1000}
-                        className={`btn w-64 py-4 text-lg font-bold shadow-lg transition-transform active:scale-95
+                        className={`btn w-full max-w-xs py-4 text-lg font-bold shadow-lg transition-transform active:scale-95
                             ${isSpinning ? 'opacity-50 cursor-not-allowed' : ''}
                             ${data.currentPoints >= 1000 ? 'btn-primary' : 'bg-gray-600 cursor-not-allowed'}
                         `}

@@ -245,9 +245,9 @@ export function QuestManager() {
                     </div>
                 ) : (
                     (data.quests || []).map(quest => (
-                        <div key={quest.id} className="card flex justify-between items-center group">
-                            <div>
-                                <div className="flex items-center gap-2">
+                        <div key={quest.id} className="card flex flex-col sm:flex-row justify-between items-center group gap-4">
+                            <div className="w-full text-center sm:text-left">
+                                <div className="flex items-center gap-2 justify-center sm:justify-start flex-wrap">
                                     <h3 className="font-semibold text-lg">{quest.title}</h3>
                                     <span className={`text-xs px-2 py-0.5 rounded-full ${quest.type === 'daily' ? 'bg-blue-900/50 text-blue-200' : 'bg-purple-900/50 text-purple-200'
                                         }`}>

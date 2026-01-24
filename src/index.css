@@ -738,6 +738,7 @@ textarea:focus {
     flex-direction: column;
     min-height: 100vh;
     transition: margin-left 0.3s ease;
+    overflow-x: hidden;
 }
 
 /* Desktop: Add left margin for sidebar */

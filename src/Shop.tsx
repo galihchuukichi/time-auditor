@@ -118,7 +118,7 @@ export function Shop() {
                     <button
                         onClick={handleSpin}
                         disabled={isSpinning || data.currentPoints < 500 || spinnerRewards.length === 0}
-                        className={`btn w-64 py-4 text-lg font-bold shadow-lg transition-transform active:scale-95
+                        className={`btn w-full max-w-xs py-4 text-lg font-bold shadow-lg transition-transform active:scale-95
                             ${isSpinning || spinnerRewards.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}
                             ${data.currentPoints >= 500 && spinnerRewards.length > 0 ? 'btn-primary' : 'bg-gray-600 cursor-not-allowed'}
                         `}

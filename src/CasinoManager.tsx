@@ -300,7 +300,7 @@ export function CasinoManager() {
                             .map((reward) => (
                                 <div
                                     key={reward.id}
-                                    className="flex items-center gap-4 p-4 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)]"
+                                    className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)]"
                                 >
                                     {editingId === reward.id ? (
                                         // Edit Mode
@@ -386,8 +386,8 @@ export function CasinoManager() {
                                                     }} title="Custom Aura"></div>
                                                 )}
                                             </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
+                                            <div className="flex-1 w-full text-center sm:text-left">
+                                                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
                                                     <p className="font-medium">{reward.name}</p>
                                                     <TierBadge tier={reward.tier || 4} />
                                                 </div>

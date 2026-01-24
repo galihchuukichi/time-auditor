@@ -266,7 +266,7 @@ export function Dashboard() {
             {/* Points Display */}
             <div className="card text-center">
                 <p className="text-[var(--color-text-muted)] text-sm mb-2">Current Points</p>
-                <p className={`text-5xl font-bold ${data.currentPoints >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-highlight)]'}`}>
+                <p className={`text-3xl md:text-5xl font-bold ${data.currentPoints >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-highlight)]'}`}>
                     {(data.currentPoints || 0).toFixed(2)}
                 </p>
             </div>
@@ -421,10 +421,10 @@ export function Dashboard() {
                                                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface)] border border-gray-800 hover:border-gray-700 transition-all"
                                             >
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <span className={`font-medium text-sm ${quest.isCompleted ? 'text-green-400' : 'text-gray-200'}`}>
+                                                    <span className={`font-medium text-sm flex-1 mr-2 ${quest.isCompleted ? 'text-green-400' : 'text-gray-200'}`}>
                                                         {quest.title}
                                                     </span>
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center gap-1 flex-shrink-0">
                                                         {quest.isCompleted && <CheckCircle2 className="w-3 h-3 text-green-500" />}
                                                         <span className="text-[var(--color-success)] font-bold text-xs">+{quest.points}</span>
                                                     </div>
@@ -547,8 +547,8 @@ export function Dashboard() {
                                         className={`flex-1 text-left px-4 py-4 rounded-xl bg-[var(--color-surface)] hover:bg-[var(--color-highlight)]/10 border border-[var(--color-border)] hover:border-[var(--color-highlight)] transition-all flex justify-between items-center ${justLogged === activity.id ? 'ring-2 ring-[var(--color-highlight)] bg-[var(--color-highlight)]/20' : ''}`}
                                         title="Tap to apply punishment"
                                     >
-                                        <span className="font-medium text-gray-200">{activity.name}</span>
-                                        <span className="text-[var(--color-highlight)] font-bold text-lg">{activity.points.toFixed(0)} pts</span>
+                                        <span className="font-medium text-gray-200 truncate mr-2">{activity.name}</span>
+                                        <span className="text-[var(--color-highlight)] font-bold text-lg whitespace-nowrap">{activity.points.toFixed(0)} pts</span>
                                     </button>
 
                                     <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">

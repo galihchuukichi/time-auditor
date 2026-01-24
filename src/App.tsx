@@ -159,7 +159,7 @@ function AppContent() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 min-w-0">
           {activeTab === 'dashboard' && <Dashboard />}
           {/* {activeTab === 'activities' && <Activities />} REMOVED */}
           {activeTab === 'shop' && <Shop />}

@@ -257,7 +257,7 @@ export function ShopManager() {
             {/* List */}
             <div className="space-y-3">
                 {data.shopItems.map(item => (
-                    <div key={item.id} className={`card flex items-center gap-4 ${editingId === item.id ? 'hidden' : ''}`}>
+                    <div key={item.id} className={`card flex flex-col sm:flex-row items-center gap-4 ${editingId === item.id ? 'hidden' : ''}`}>
                         <div className="w-16 h-16 rounded overflow-hidden bg-[var(--color-bg-secondary)] flex-shrink-0 flex items-center justify-center">
                             {item.image.startsWith('http') || item.image.startsWith('/') ? (
                                 <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
@@ -265,8 +265,8 @@ export function ShopManager() {
                                 <span className="text-3xl">{item.image}</span>
                             )}
                         </div>
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                        <div className="flex-1 w-full text-center sm:text-left">
+                            <div className="flex items-center justify-center sm:justify-start gap-2">
                                 <p className="font-medium">{item.name}</p>
                                 <TierBadge tier={item.tier || 4} />
                             </div>
