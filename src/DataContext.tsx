@@ -267,12 +267,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         async function initData() {
             let currentData: AppData = loadData(); // Start with local
+            let cloudLoaded = false;
 
             if (isSupabaseConfigured()) {
                 setIsCloudConnected(true);
                 try {
                     const cloudData = await fetchDataFromSupabase();
                     if (cloudData) {
+                        cloudLoaded = true;
                         // Merge inventories safely
                         const localInv = currentData.inventory || [];
                         const cloudInv = cloudData.inventory || [];
@@ -302,6 +304,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     }
                 } catch (error) {
                     console.error('Failed to load from Supabase:', error);
+                    // Do NOT set cloudLoaded to true
                 }
             }
 
@@ -311,18 +314,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 console.log("Refreshing Daily Rewards...");
 
                 // If connected to Supabase, clear old rewards before generating new ones
-                if (isSupabaseConfigured()) {
+                // Only if we actually connected successfully
+                if (isSupabaseConfigured() && cloudLoaded) {
                     await clearAllCasinoRewards();
                 }
 
                 const newRewards = generateDailyRewards();
                 currentData.casinoRewards = newRewards;
                 currentData.lastDailyRefresh = today;
-
-                // If cloud connected, we verify if the cloud already has TODAY'S rewards?
-                // Actually, if we just generated new ones locally but cloud has old ones, we overwrite.
-                // But if multiple devices? 
-                // Simple version: Client updates it. Winner takes all.
             }
 
             // Backfill/Sanity check if something went wrong and we have NO rewards
@@ -387,9 +386,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
 
             // If we updated daily rewards or quests, sync to Supabase (if connected)
-            if (isSupabaseConfigured()) {
+            if (isSupabaseConfigured() && cloudLoaded) {
                 // simple sync
                 syncDataToSupabase(currentData);
+            } else if (isSupabaseConfigured() && !cloudLoaded) {
+                console.warn("Skipping initial sync to Supabase because cloud data was not loaded successfully.");
             }
         }
         initData();
