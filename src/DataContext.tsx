@@ -717,7 +717,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             name: rewardDef.name,
             image: rewardDef.image,
             tier: rewardDef.tier,
-            acquiredAt: new Date().toISOString()
+            acquiredAt: new Date().toISOString(),
+            auraColors: rewardDef.auraColors
         };
 
         const historyEntry: CasinoGameHistory = {
@@ -853,36 +854,55 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         // Check if target tier image pool exists
         const tierKey = `t${targetTier}` as keyof typeof TIER_IMAGES;
-        const fullPool = TIER_IMAGES[tierKey];
+        const systemPool = TIER_IMAGES[tierKey] || [];
 
-        if (!fullPool || fullPool.length === 0) {
+        // Also get custom rewards for this tier
+        const customPool = data.casinoRewards.filter(r => r.tier === targetTier);
+
+        if (systemPool.length === 0 && customPool.length === 0) {
             return { success: false, message: `No items configured for Tier ${targetTier}.` };
         }
 
         // Consume items (randomly pick N items to remove)
-        // We Shuffle then slice? Or just pick first N?
-        // Let's just pick the first N for simplicity (FIFO-ish)
         const itemsToRemove = sourceItems.slice(0, requiredCount);
         const itemIdsToRemove = new Set(itemsToRemove.map(i => i.id));
 
-        // Generate new item from FULL POOL (not just daily rewards)
-        const randomImage = fullPool[Math.floor(Math.random() * fullPool.length)];
-        const randomName = extractNameFromPath(randomImage);
+        // Generate new item from FULL POOL (System + Custom)
+        const combinedPool = [
+            ...systemPool.map(img => ({ type: 'system', data: img })),
+            ...customPool.map(rew => ({ type: 'custom', data: rew }))
+        ];
 
-        // We need a rewardId, but since this might not be in the daily menu (casinoRewards),
-        // we can just generate a new ID for the reward reference or use a placeholder.
-        // However, 'rewardId' is mostly used for tracking what "definition" generated this.
-        // Let's generate a unique ID for this 'ad-hoc' reward definition.
-        const adHocRewardId = generateId();
+        const selection = combinedPool[Math.floor(Math.random() * combinedPool.length)];
 
-        const newItem: InventoryItem = {
-            id: generateId(),
-            rewardId: adHocRewardId,
-            name: randomName,
-            image: randomImage,
-            tier: targetTier,
-            acquiredAt: new Date().toISOString()
-        };
+        let newItem: InventoryItem;
+
+        if (selection.type === 'custom') {
+            const reward = selection.data as CasinoReward;
+            newItem = {
+                id: generateId(),
+                rewardId: reward.id,
+                name: reward.name,
+                image: reward.image,
+                tier: targetTier,
+                acquiredAt: new Date().toISOString(),
+                auraColors: reward.auraColors
+            };
+        } else {
+            // System item
+            const imagePath = selection.data as string;
+            const randomName = extractNameFromPath(imagePath);
+            const adHocRewardId = generateId();
+
+            newItem = {
+                id: generateId(),
+                rewardId: adHocRewardId,
+                name: randomName,
+                image: imagePath,
+                tier: targetTier,
+                acquiredAt: new Date().toISOString()
+            };
+        }
 
         const newLog: LogEntry = {
             id: generateId(),

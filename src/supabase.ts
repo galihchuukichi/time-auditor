@@ -84,6 +84,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             minRoll: c.min_roll,
             cost: c.cost || 1,
             description: c.description,
+            auraColors: c.aura_colors,
         }));
 
         const casinoHistory: CasinoGameHistory[] = (casinoHistoryRes.data || []).map(h => ({
@@ -106,6 +107,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             image: i.image,
             tier: i.tier,
             acquiredAt: i.acquired_at,
+            auraColors: i.aura_colors,
         }));
 
         const quests: any[] = (questsRes.data || []).map(q => ({
@@ -334,6 +336,7 @@ export async function saveCasinoReward(reward: CasinoReward): Promise<boolean> {
         min_roll: reward.minRoll,
         cost: reward.cost,
         description: reward.description,
+        aura_colors: reward.auraColors,
     });
 
     return !error;
@@ -379,6 +382,7 @@ export async function saveInventoryItem(item: any): Promise<boolean> {
         image: item.image,
         tier: item.tier,
         acquired_at: item.acquiredAt,
+        aura_colors: item.auraColors,
     });
 
     return !error;

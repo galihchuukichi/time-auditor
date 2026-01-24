@@ -38,6 +38,7 @@ export interface CasinoReward {
     minRoll: number; // Kept for backward compatibility or if we switch modes, but Gacha uses probabilities
     cost: number; // Kept but Gacha has fixed cost
     description?: string;
+    auraColors?: string[]; // Array of hex codes for legendary aura
 }
 
 export interface CasinoGameHistory {
@@ -60,6 +61,7 @@ export interface InventoryItem {
     image: string;
     tier: number;
     acquiredAt: string;
+    auraColors?: string[]; // Array of hex codes
 }
 
 // Point values for timeline entries
@@ -219,7 +221,18 @@ export const TIER_1_AURAS: Record<string, string> = {
     "Sherlock Holmes": "bg-gradient-to-br from-black via-gray-700 to-white",
 };
 
-export const getLegendaryAuraClass = (name: string): string | null => {
+export const getLegendaryAuraClass = (name: string, dynamicColors?: string[]): string | null => {
+    // If dynamic colors are provided, use them
+    if (dynamicColors && dynamicColors.length >= 2) {
+        const c1 = dynamicColors[0];
+        const c2 = dynamicColors[1];
+        const c3 = dynamicColors[2];
+        if (c3) {
+            return `bg-gradient-to-br from-[${c1}] via-[${c2}] to-[${c3}]`;
+        }
+        return `bg-gradient-to-br from-[${c1}] to-[${c2}]`;
+    }
+
     for (const key in TIER_1_AURAS) {
         if (name.includes(key)) return TIER_1_AURAS[key];
     }

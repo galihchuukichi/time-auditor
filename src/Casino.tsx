@@ -129,8 +129,8 @@ export function Casino() {
                                 {winningResult.tier === 1 && (
                                     <div className="absolute inset-0 z-0 scale-150 opacity-80">
                                         <div className="fluid-aura-container">
-                                            <div className={`fluid-aura-layer ${getLegendaryAuraClass(winningResult.reward.name) || 'bg-yellow-500'}`}></div>
-                                            <div className={`fluid-aura-layer ${getLegendaryAuraClass(winningResult.reward.name) || 'bg-yellow-500'}`}></div>
+                                            <div className={`fluid-aura-layer ${getLegendaryAuraClass(winningResult.reward.name, winningResult.reward.auraColors) || 'bg-yellow-500'}`}></div>
+                                            <div className={`fluid-aura-layer ${getLegendaryAuraClass(winningResult.reward.name, winningResult.reward.auraColors) || 'bg-yellow-500'}`}></div>
                                             <div className="fluid-aura-layer"></div>
                                         </div>
                                     </div>
@@ -382,7 +382,7 @@ export function Casino() {
                             <div className="relative w-48 h-48 mb-6 group perspective-1000">
                                 {/* Glow Effect */}
                                 <div className={`absolute inset-0 rounded-xl blur-xl opacity-75 
-                                    ${rewardModal.item.tier === 1 ? (getLegendaryAuraClass(rewardModal.item.name) || 'bg-yellow-500') : ''}
+                                    ${rewardModal.item.tier === 1 ? (getLegendaryAuraClass(rewardModal.item.name, rewardModal.item.auraColors) || 'bg-yellow-500') : ''}
                                     ${rewardModal.item.tier === 2 ? 'bg-purple-500' : ''}
                                     ${rewardModal.item.tier === 3 ? 'bg-blue-500' : ''}
                                     ${rewardModal.item.tier === 4 ? 'bg-gray-500' : ''}
@@ -391,11 +391,11 @@ export function Casino() {
 
                                 <div className="relative w-full h-full rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl transform transition-transform duration-500 hover:scale-105 hover:rotate-2 bg-gray-900">
                                     {/* Inner Aura for Legendaries */}
-                                    {rewardModal.item.tier === 1 && getLegendaryAuraClass(rewardModal.item.name) && (
+                                    {rewardModal.item.tier === 1 && getLegendaryAuraClass(rewardModal.item.name, rewardModal.item.auraColors) && (
                                         <div className="absolute inset-0 overflow-hidden">
                                             <div className="fluid-aura-container">
-                                                <div className={`fluid-aura-layer ${getLegendaryAuraClass(rewardModal.item.name)}`}></div>
-                                                <div className={`fluid-aura-layer ${getLegendaryAuraClass(rewardModal.item.name)}`}></div>
+                                                <div className={`fluid-aura-layer ${getLegendaryAuraClass(rewardModal.item.name, rewardModal.item.auraColors)}`}></div>
+                                                <div className={`fluid-aura-layer ${getLegendaryAuraClass(rewardModal.item.name, rewardModal.item.auraColors)}`}></div>
                                                 <div className="fluid-aura-layer"></div>
                                             </div>
                                         </div>
