@@ -10,7 +10,8 @@ export interface ShopItem {
     id: string;
     name: string;
     image: string;
-    price: number;
+    price: number; // Keep for reference or if we mix systems, but Gacha usually has flat cost
+    tier: 1 | 2 | 3 | 4; // 1=Legendary, 2=Rare, 3=Uncommon, 4=Common
 }
 
 export interface TimelineEntry {
@@ -108,10 +109,10 @@ const defaultData: AppData = {
         { id: '4', name: 'Wasted time on social media', type: 'punishment', points: -5, isVisible: true },
     ],
     shopItems: [
-        { id: '1', name: 'Roasted Peanut', image: '🥜', price: 0.05 },
-        { id: '2', name: 'Sausage', image: '🌭', price: 1 },
-        { id: '3', name: 'Yogurt', image: '🥛', price: 5 },
-        { id: '4', name: 'Fishdumpling Cheese', image: '🧀', price: 3 },
+        { id: '1', name: 'Roasted Peanut', image: '🥜', price: 0.05, tier: 4 },
+        { id: '2', name: 'Sausage', image: '🌭', price: 1, tier: 4 },
+        { id: '3', name: 'Yogurt', image: '🥛', price: 5, tier: 3 },
+        { id: '4', name: 'Fishdumpling Cheese', image: '🧀', price: 3, tier: 3 },
     ],
     currentPoints: 0,
     purchaseHistory: [],

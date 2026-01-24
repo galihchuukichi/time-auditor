@@ -50,6 +50,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             name: s.name,
             image: s.image,
             price: s.price,
+            tier: s.tier || 4, // Default to Common
         }));
 
         const timelineEntries: TimelineEntry[] = (timelineRes.data || []).map(t => ({
@@ -178,6 +179,7 @@ export async function saveShopItem(item: ShopItem): Promise<boolean> {
         name: item.name,
         image: item.image,
         price: item.price,
+        tier: item.tier,
     });
 
     return !error;
@@ -419,5 +421,34 @@ export async function deleteQuestFromSupabase(id: string): Promise<boolean> {
 
     const { error } = await supabase.from('quests').delete().eq('id', id);
     return !error;
+}
+
+// Upload shop item image to Supabase Storage
+export async function uploadShopImage(file: File): Promise<string | null> {
+    if (!supabase) return null;
+
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('shop-items')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Error uploading image:', uploadError);
+            return null;
+        }
+
+        const { data } = supabase.storage
+            .from('shop-items')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
+    } catch (error) {
+        console.error('Error in uploadShopImage:', error);
+        return null;
+    }
 }
 

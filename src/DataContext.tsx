@@ -214,6 +214,7 @@ interface DataContextType {
     updateCasinoReward: (id: string, updates: Partial<CasinoReward>) => void;
     deleteCasinoReward: (id: string) => void;
     playGacha: () => { reward: InventoryItem; won: boolean; tier: number } | null;
+    playShopGacha: () => { reward: InventoryItem; won: boolean; tier: number } | null;
     tradeUp: (targetTier: number) => { success: boolean; message: string; newItem?: InventoryItem };
     // Quests
     addQuest: (quest: Omit<Quest, 'id' | 'isCompleted'>) => void;
@@ -412,6 +413,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     { id: '3', name: 'Small Treat', image: '🎁', tier: 3, minRoll: 8, cost: 0.25, description: 'Uncommon Prize' },
                     { id: '4', name: 'Consolation', image: '🍬', tier: 4, minRoll: 6, cost: 0.1, description: 'Common Prize' },
                 ];
+            }
+
+
+            // Backfill Shop Items Tiers
+            if (prev.shopItems) {
+                const updatedShopItems = prev.shopItems.map(item => ({
+                    ...item,
+                    tier: item.tier || 4
+                }));
+                // Check if any changed
+                const hasChanges = JSON.stringify(updatedShopItems) !== JSON.stringify(prev.shopItems);
+                if (hasChanges) {
+                    updates.shopItems = updatedShopItems;
+                }
             }
 
             if (Object.keys(updates).length > 0) {
@@ -739,6 +754,83 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         return { reward: newInventoryItem, won: true, tier: rewardDef.tier };
     }, [data.casinoRewards, data.currentPoints]);
+
+    const playShopGacha = useCallback((): { reward: InventoryItem; won: boolean; tier: number } | null => {
+        const cost = 500; // Updated to 500 as per request
+        if (data.currentPoints < cost) return null;
+
+        // Probabilities (Same as Casino)
+        // Tier 2: 13%
+        // Tier 3: 37%
+        // Tier 4: 50%
+        const roll = Math.random() * 100;
+        let tier = 4;
+        if (roll < 13) tier = 2;
+        else if (roll < 50) tier = 3;
+        else tier = 4;
+
+        // Find shop items of this tier
+        const possibleRewards = data.shopItems.filter(r => (r.tier || 4) === tier);
+
+        let rewardDef: ShopItem;
+        if (possibleRewards.length === 0) {
+            // Fallback
+            const lowerRewards = data.shopItems.filter(r => (r.tier || 4) >= tier);
+            if (lowerRewards.length > 0) {
+                rewardDef = lowerRewards[Math.floor(Math.random() * lowerRewards.length)];
+            } else {
+                if (data.shopItems.length === 0) return null;
+                rewardDef = data.shopItems[Math.floor(Math.random() * data.shopItems.length)];
+            }
+        } else {
+            rewardDef = possibleRewards[Math.floor(Math.random() * possibleRewards.length)];
+        }
+
+        const newInventoryItem: InventoryItem = {
+            id: generateId(),
+            rewardId: rewardDef.id,
+            name: rewardDef.name,
+            image: rewardDef.image,
+            tier: rewardDef.tier || 4,
+            acquiredAt: new Date().toISOString()
+        };
+
+        const historyEntry: CasinoGameHistory = { // Reusing CasinoGameHistory type or create a new ShopHistory? 
+            // The type definitions might limit 'game' to 'dice' | 'gacha'. 
+            // Let's reuse 'gacha' but maybe message indicates it's Shop.
+            id: generateId(),
+            game: 'gacha',
+            cost: cost,
+            won: true,
+            rewardId: rewardDef.id,
+            rewardName: rewardDef.name,
+            timestamp: new Date().toISOString(),
+        };
+
+        const newLog: LogEntry = {
+            id: generateId(),
+            message: `🛍️ Shop Gacha: Won ${rewardDef.image} ${rewardDef.name} (Tier ${rewardDef.tier || 4})`,
+            timestamp: new Date().toISOString(),
+            type: 'purchase', // Or 'casino', but it's a shop spending
+            pointsChange: -cost,
+        };
+
+        if (isSupabaseConfigured()) {
+            addCasinoGameHistory(historyEntry); // Logging to casino history for now as "Gacha"
+            addLogEntry(newLog);
+            saveInventoryItemToSupabase(newInventoryItem);
+        }
+
+        setData(prev => ({
+            ...prev,
+            currentPoints: prev.currentPoints - cost,
+            casinoHistory: [historyEntry, ...prev.casinoHistory], // Unified history
+            inventory: [newInventoryItem, ...prev.inventory],
+            logs: [...(prev.logs || []), newLog],
+        }));
+
+        return { reward: newInventoryItem, won: true, tier: rewardDef.tier || 4 };
+    }, [data.shopItems, data.currentPoints]);
 
     const tradeUp = useCallback((targetTier: number): { success: boolean; message: string; newItem?: InventoryItem } => {
         // Trade Logic:
@@ -1140,6 +1232,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 updateCasinoReward,
                 deleteCasinoReward,
                 playGacha,
+                playShopGacha,
                 tradeUp,
                 addQuest,
                 updateQuest,

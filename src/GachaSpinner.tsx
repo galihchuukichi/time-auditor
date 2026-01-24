@@ -160,7 +160,11 @@ export function GachaSpinner({ rewards, isSpinning, winningReward, onComplete }:
                                 }}></div>
 
                                 <div className="relative z-20 w-full h-full flex items-center justify-center">
-                                    <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+                                    {item.image.startsWith('/') || item.image.startsWith('http') ? (
+                                        <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+                                    ) : (
+                                        <span className="text-4xl filter drop-shadow-md z-20">{item.image}</span>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -188,7 +192,11 @@ export function GachaSpinner({ rewards, isSpinning, winningReward, onComplete }:
                             `}></div>
 
                             <div className="relative z-10 w-full h-full flex items-center justify-center">
-                                <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+                                {item.image.startsWith('/') || item.image.startsWith('http') ? (
+                                    <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain drop-shadow-md" />
+                                ) : (
+                                    <span className="text-4xl filter drop-shadow-md">{item.image}</span>
+                                )}
                             </div>
                         </div>
                     );

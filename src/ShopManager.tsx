@@ -1,17 +1,42 @@
 import { useState, useRef } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Settings, Download, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Settings, Download, Upload, Image as ImageIcon, Loader } from 'lucide-react';
 import { useData } from './DataContext';
 import type { ShopItem } from './store';
-import { EmojiPicker } from './EmojiPicker';
-
+import { EmojiPicker } from './EmojiPicker'; // Keep as fallback/option if desired, or remove if strictly 1:1 image
+import { uploadShopImage } from './supabase';
 
 export function ShopManager() {
     const { data, addShopItem, updateShopItem, deleteShopItem, exportData, importData } = useData();
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [form, setForm] = useState({ name: '', image: '🎁', price: 1 });
+
+    // Form State
+    const [form, setForm] = useState<{
+        name: string;
+        image: string; // URL or Emoji
+        price: number;
+        tier: 1 | 2 | 3 | 4;
+    }>({ name: '', image: '🎁', price: 1, tier: 4 });
+
+    const [uploading, setUploading] = useState(false);
     const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const imageUploadRef = useRef<HTMLInputElement>(null);
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        const url = await uploadShopImage(file);
+        setUploading(false);
+
+        if (url) {
+            setForm(prev => ({ ...prev, image: url }));
+        } else {
+            alert('Failed to upload image. Please try again.');
+        }
+    };
 
     const handleAdd = () => {
         if (!form.name.trim()) return;
@@ -19,9 +44,9 @@ export function ShopManager() {
             name: form.name.trim(),
             image: form.image,
             price: Math.max(0.01, form.price),
-        });
-        setForm({ name: '', image: '🎁', price: 1 });
-        setIsAdding(false);
+            tier: form.tier, // Pass tier
+        } as any); // Cast because store might not be fully updated in typescript intelligence yet
+        resetForm();
     };
 
     const handleUpdate = (id: string) => {
@@ -30,9 +55,10 @@ export function ShopManager() {
             name: form.name.trim(),
             image: form.image,
             price: Math.max(0.01, form.price),
-        });
+            tier: form.tier,
+        } as any);
         setEditingId(null);
-        setForm({ name: '', image: '🎁', price: 1 });
+        resetForm();
     };
 
     const startEdit = (item: ShopItem) => {
@@ -41,13 +67,15 @@ export function ShopManager() {
             name: item.name,
             image: item.image,
             price: item.price,
+            tier: item.tier || 4,
         });
+        setIsAdding(false);
     };
 
-    const cancelEdit = () => {
-        setEditingId(null);
+    const resetForm = () => {
+        setForm({ name: '', image: '🎁', price: 1, tier: 4 });
         setIsAdding(false);
-        setForm({ name: '', image: '🎁', price: 1 });
+        setEditingId(null);
     };
 
     const handleImportClick = () => {
@@ -66,12 +94,114 @@ export function ShopManager() {
             setTimeout(() => setImportStatus('idle'), 3000);
         };
         reader.readAsText(file);
-
-        // Reset file input
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
+
+    const TierBadge = ({ tier }: { tier: number }) => {
+        const colors = {
+            1: 'bg-yellow-900 text-yellow-400 border-yellow-400',
+            2: 'bg-purple-900 text-purple-400 border-purple-400',
+            3: 'bg-blue-900 text-blue-400 border-blue-400',
+            4: 'bg-gray-700 text-gray-300 border-gray-400',
+        };
+        const labels = { 1: 'Legendary', 2: 'Rare', 3: 'Uncommon', 4: 'Common' };
+        return (
+            <span className={`px-2 py-0.5 rounded text-xs border ${colors[tier as keyof typeof colors]}`}>
+                {labels[tier as keyof typeof labels]}
+            </span>
+        );
+    };
+
+    const FormContent = ({ onSave, onCancel }: { onSave: () => void, onCancel: () => void }) => (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm text-[var(--color-text-muted)] mb-1">Item Name</label>
+                    <input
+                        type="text"
+                        value={form.name}
+                        onChange={e => setForm({ ...form, name: e.target.value })}
+                        className="input w-full"
+                        autoFocus
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm text-[var(--color-text-muted)] mb-1">Tier (Probability)</label>
+                    <select
+                        value={form.tier}
+                        onChange={e => setForm({ ...form, tier: Number(e.target.value) as 1 | 2 | 3 | 4 })}
+                        className="input w-full"
+                    >
+                        <option value={4}>Common (50%)</option>
+                        <option value={3}>Uncommon (37%)</option>
+                        <option value={2}>Rare (13%)</option>
+                        <option value={1}>Legendary (0% - Trade Up)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-sm text-[var(--color-text-muted)] mb-2">Image (1:1 Ratio)</label>
+                <div className="flex items-start gap-4">
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-[var(--color-border)] bg-[var(--color-bg-secondary)] flex items-center justify-center group">
+                        {uploading ? (
+                            <Loader className="w-8 h-8 animate-spin text-[var(--color-highlight)]" />
+                        ) : form.image.startsWith('http') || form.image.startsWith('/') ? (
+                            <img src={form.image} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="text-4xl">{form.image}</span>
+                        )}
+                        <button
+                            onClick={() => imageUploadRef.current?.click()}
+                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                        >
+                            <Upload className="w-6 h-6" />
+                        </button>
+                    </div>
+
+                    <div className="flex-1 space-y-2">
+                        <input
+                            ref={imageUploadRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => imageUploadRef.current?.click()}
+                            className="btn btn-secondary btn-sm flex items-center gap-2"
+                        >
+                            <ImageIcon className="w-4 h-4" /> Upload Image
+                        </button>
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                            Upload a 1:1 ratio image. This will be saved to Supabase.
+                        </p>
+
+                        <div className="pt-2">
+                            <p className="text-xs text-[var(--color-text-muted)] mb-1">Or use emoji:</p>
+                            <EmojiPicker
+                                value={form.image.length < 5 ? form.image : '🎁'} // Only show emoji in picker if it looks like one
+                                onChange={(emoji) => setForm({ ...form, image: emoji })}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-2">
+                <button onClick={onCancel} className="btn btn-secondary flex items-center gap-2">
+                    <X className="w-4 h-4" /> Cancel
+                </button>
+                <button
+                    onClick={onSave}
+                    disabled={!form.name.trim() || uploading}
+                    className="btn btn-success flex items-center gap-2"
+                >
+                    <Save className="w-4 h-4" /> Save Item
+                </button>
+            </div>
+        </div>
+    );
 
     return (
         <div className="space-y-6">
@@ -93,9 +223,6 @@ export function ShopManager() {
                     <Download className="w-5 h-5" />
                     Data Backup
                 </h3>
-                <p className="text-[var(--color-text-muted)] text-sm mb-4">
-                    Export your data to create a backup or import a previously saved backup file.
-                </p>
                 <div className="flex flex-wrap gap-3">
                     <button onClick={exportData} className="btn btn-success flex items-center gap-2">
                         <Download className="w-4 h-4" /> Export Data
@@ -111,126 +238,62 @@ export function ShopManager() {
                         className="hidden"
                     />
                 </div>
-                {importStatus === 'success' && (
-                    <p className="text-[var(--color-success)] text-sm mt-3">✓ Data imported successfully!</p>
-                )}
-                {importStatus === 'error' && (
-                    <p className="text-[var(--color-danger)] text-sm mt-3">✗ Failed to import data. Please check the file format.</p>
-                )}
+                {importStatus === 'success' && <p className="text-[var(--color-success)] text-sm mt-2">✓ Imported successfully!</p>}
+                {importStatus === 'error' && <p className="text-[var(--color-danger)] text-sm mt-2">✗ Import failed.</p>}
             </div>
 
-            {/* Add Form */}
-            {isAdding && (
-                <div className="card">
-                    <h3 className="text-lg font-medium mb-4">New Shop Item</h3>
-                    <div className="space-y-4">
-                        <input
-                            type="text"
-                            placeholder="Item name..."
-                            value={form.name}
-                            onChange={e => setForm({ ...form, name: e.target.value })}
-                            className="input"
-                            autoFocus
-                        />
-                        <div>
-                            <label className="block text-sm text-[var(--color-text-muted)] mb-2">Choose Icon</label>
-                            <EmojiPicker
-                                value={form.image}
-                                onChange={(emoji) => setForm({ ...form, image: emoji })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm text-[var(--color-text-muted)] mb-2">Price (points)</label>
-                            <input
-                                type="number"
-                                value={form.price}
-                                onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0.01 })}
-                                className="input"
-                                min="0.01"
-                                step="0.01"
-                            />
-                        </div>
-                        <div className="flex gap-2 justify-end">
-                            <button onClick={cancelEdit} className="btn btn-secondary flex items-center gap-2">
-                                <X className="w-4 h-4" /> Cancel
-                            </button>
-                            <button onClick={handleAdd} className="btn btn-success flex items-center gap-2">
-                                <Save className="w-4 h-4" /> Save
-                            </button>
-                        </div>
-                    </div>
+            {/* Editing/Adding Form */}
+            {(isAdding || editingId) && (
+                <div className="card border-2 border-[var(--color-highlight)]">
+                    <h3 className="text-lg font-medium mb-4">{isAdding ? 'New Shop Item' : 'Edit Shop Item'}</h3>
+                    {isAdding ? (
+                        <FormContent onSave={handleAdd} onCancel={resetForm} />
+                    ) : (
+                        // If editingId is set, we find the item but we already loaded into form state
+                        <FormContent onSave={() => handleUpdate(editingId!)} onCancel={resetForm} />
+                    )}
                 </div>
             )}
 
-            {/* Items List */}
+            {/* List */}
             <div className="space-y-3">
                 {data.shopItems.map(item => (
-                    <div key={item.id} className="card flex items-center gap-4">
-                        {editingId === item.id ? (
-                            <div className="flex-1 space-y-4">
-                                <input
-                                    type="text"
-                                    value={form.name}
-                                    onChange={e => setForm({ ...form, name: e.target.value })}
-                                    className="input"
-                                    autoFocus
-                                />
-                                <div>
-                                    <label className="block text-sm text-[var(--color-text-muted)] mb-2">Choose Icon</label>
-                                    <EmojiPicker
-                                        value={form.image}
-                                        onChange={(emoji) => setForm({ ...form, image: emoji })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-[var(--color-text-muted)] mb-2">Price</label>
-                                    <input
-                                        type="number"
-                                        value={form.price}
-                                        onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0.01 })}
-                                        className="input"
-                                        min="0.01"
-                                        step="0.01"
-                                    />
-                                </div>
-                                <div className="flex gap-2 justify-end">
-                                    <button onClick={cancelEdit} className="btn btn-secondary flex items-center gap-2">
-                                        <X className="w-4 h-4" /> Cancel
-                                    </button>
-                                    <button onClick={() => handleUpdate(item.id)} className="btn btn-success flex items-center gap-2">
-                                        <Save className="w-4 h-4" /> Save
-                                    </button>
-                                </div>
+                    <div key={item.id} className={`card flex items-center gap-4 ${editingId === item.id ? 'hidden' : ''}`}>
+                        <div className="w-16 h-16 rounded overflow-hidden bg-[var(--color-bg-secondary)] flex-shrink-0 flex items-center justify-center">
+                            {item.image.startsWith('http') || item.image.startsWith('/') ? (
+                                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="text-3xl">{item.image}</span>
+                            )}
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <p className="font-medium">{item.name}</p>
+                                <TierBadge tier={item.tier || 4} />
                             </div>
-                        ) : (
-                            <>
-                                <div className="text-4xl">{item.image}</div>
-                                <div className="flex-1">
-                                    <p className="font-medium">{item.name}</p>
-                                    <p className="text-[var(--color-highlight)] text-sm">{item.price.toFixed(2)} points</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => startEdit(item)}
-                                        className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => deleteShopItem(item.id)}
-                                        className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-danger)] transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </>
-                        )}
+                            <p className="text-[var(--color-text-muted)] text-sm">
+                                {item.price ? `${item.price} pts (Reference)` : 'Gacha Item'}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => startEdit(item)}
+                                className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => deleteShopItem(item.id)}
+                                className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-danger)] transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 ))}
-
                 {data.shopItems.length === 0 && (
-                    <div className="card text-center text-[var(--color-text-muted)]">
-                        <p>No shop items yet. Create your first one!</p>
+                    <div className="text-center py-8 text-[var(--color-text-muted)]">
+                        No items found. Add some to populate the Shop Gacha!
                     </div>
                 )}
             </div>
