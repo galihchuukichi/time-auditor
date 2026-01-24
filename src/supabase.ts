@@ -106,6 +106,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             name: i.name,
             image: i.image,
             tier: i.tier,
+            type: (i.image && i.image.startsWith('/tier')) ? 'character' : 'shop_item', // Inference
             acquiredAt: i.acquired_at,
             auraColors: i.aura_colors,
         }));

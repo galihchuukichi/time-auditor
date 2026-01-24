@@ -12,6 +12,9 @@ export function CharacterDisplay() {
         ? data.inventory.find(i => i.id === data.selectedCharacterId)
         : null;
 
+    // Filter characters only (exclude shop items)
+    const characters = data.inventory.filter(i => i.type === 'character' || (!i.type && i.image.startsWith('/tier')));
+
     const handleSelect = (id: string) => {
         const newData = { ...data, selectedCharacterId: id };
         setData(newData);
@@ -95,7 +98,7 @@ export function CharacterDisplay() {
                         <p className="text-gray-400 mb-6 text-sm">Choose a character to follow you across the app.</p>
 
                         <div className="flex-1 overflow-y-auto min-h-0 pr-2">
-                            {data.inventory.length === 0 ? (
+                            {characters.length === 0 ? (
                                 <div className="text-center py-20 text-gray-500">
                                     <p>Your locker is empty.</p>
                                     <p className="text-sm mt-2">Visit the Casino to win characters!</p>
@@ -114,7 +117,7 @@ export function CharacterDisplay() {
                                     </button>
 
                                     {/* Inventory Items */}
-                                    {data.inventory.map(item => {
+                                    {characters.map(item => {
                                         const isSelected = selectedCharacter?.id === item.id;
                                         const isLegendary = item.tier === 1;
 

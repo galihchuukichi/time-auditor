@@ -60,6 +60,7 @@ export interface InventoryItem {
     name: string;
     image: string;
     tier: number;
+    type?: 'character' | 'shop_item'; // 'character' for locker, 'shop_item' for just inventory
     acquiredAt: string;
     auraColors?: string[]; // Array of hex codes
 }

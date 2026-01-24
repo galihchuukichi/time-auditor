@@ -448,6 +448,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 if (hasChanges) {
                     updates.shopItems = updatedShopItems;
                 }
+                if (hasChanges) {
+                    updates.shopItems = updatedShopItems;
+                }
+            }
+
+            // Backfill Inventory Types
+            if (prev.inventory) {
+                const updatedInventory = prev.inventory.map(item => {
+                    if (item.type) return item;
+                    // Infer type
+                    const isCharacter = item.image.startsWith('/tier'); // Tier images usually start with /tier
+                    return {
+                        ...item,
+                        type: isCharacter ? 'character' : 'shop_item' // Default fallback
+                    } as InventoryItem;
+                });
+
+                if (JSON.stringify(updatedInventory) !== JSON.stringify(prev.inventory)) {
+                    updates.inventory = updatedInventory;
+                }
             }
 
             if (Object.keys(updates).length > 0) {
@@ -757,6 +777,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             name: rewardDef.name,
             image: rewardDef.image,
             tier: rewardDef.tier,
+            type: 'character',
             acquiredAt: new Date().toISOString(),
             auraColors: rewardDef.auraColors
         };
@@ -833,6 +854,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             name: rewardDef.name,
             image: rewardDef.image,
             tier: rewardDef.tier || 4,
+            type: 'shop_item',
             acquiredAt: new Date().toISOString()
         };
 
@@ -887,7 +909,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         else if (targetTier === 1) requiredCount = 12; // uses T2
         else return { success: false, message: "Invalid target tier" };
 
-        const sourceItems = data.inventory.filter(i => i.tier === sourceTier);
+        const sourceItems = data.inventory.filter(i => i.tier === sourceTier && i.type === 'character');
         if (sourceItems.length < requiredCount) {
             return { success: false, message: `Not enough Tier ${sourceTier} items. Need ${requiredCount}, have ${sourceItems.length}.` };
         }
@@ -925,6 +947,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 name: reward.name,
                 image: reward.image,
                 tier: targetTier,
+                type: 'character',
                 acquiredAt: new Date().toISOString(),
                 auraColors: reward.auraColors
             };
@@ -940,6 +963,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 name: randomName,
                 image: imagePath,
                 tier: targetTier,
+                type: 'character',
                 acquiredAt: new Date().toISOString()
             };
         }
