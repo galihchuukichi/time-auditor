@@ -139,6 +139,7 @@ export async function fetchDataFromSupabase(): Promise<AppData | null> {
             selectedCharacterId: userDataRes.data?.selected_character_id || null,
             lastDailyBonusClaimed: userDataRes.data?.last_daily_bonus_claimed || null,
             lastWeeklyBonusClaimed: userDataRes.data?.last_weekly_bonus_claimed || null,
+            lastDailyRefresh: userDataRes.data?.last_daily_refresh || '', // Sync daily refresh date
         };
     } catch (error) {
         console.error('Error fetching data from Supabase:', error);
@@ -219,30 +220,30 @@ export async function deleteTimelineEntryFromSupabase(id: string): Promise<boole
     return !error;
 }
 
-// Update user points in Supabase
-export async function updateUserPoints(points: number): Promise<boolean> {
+// Update specific user data fields (Generic)
+export async function updateUserData(updates: Record<string, any>): Promise<boolean> {
     if (!supabase) return false;
 
     const { error } = await supabase.from('user_data').upsert({
         user_id: DEFAULT_USER_ID,
-        current_points: points,
+        ...updates,
         updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
 
     return !error;
 }
 
+// Update user points in Supabase
+export async function updateUserPoints(points: number): Promise<boolean> {
+    return updateUserData({ current_points: points });
+}
+
 // Update user bonus claims in Supabase
 export async function saveBonusClaims(daily: string | null, weekly: string | null): Promise<boolean> {
-    if (!supabase) return false;
-
-    const { error } = await supabase.from('user_data').update({
+    return updateUserData({
         last_daily_bonus_claimed: daily,
-        last_weekly_bonus_claimed: weekly,
-        updated_at: new Date().toISOString(),
-    }).eq('user_id', DEFAULT_USER_ID);
-
-    return !error;
+        last_weekly_bonus_claimed: weekly
+    });
 }
 
 // Add log entry to Supabase
@@ -347,6 +348,17 @@ export async function deleteCasinoRewardFromSupabase(id: string): Promise<boolea
     if (!supabase) return false;
 
     const { error } = await supabase.from('casino_rewards').delete().eq('id', id);
+    return !error;
+}
+
+// Delete ALL casino rewards (for daily refresh)
+export async function clearAllCasinoRewards(): Promise<boolean> {
+    if (!supabase) return false;
+
+    // We can't delete without a filter usually unless allowed, 
+    // but assuming standard policy or using a broad filter.
+    // 'id' is distinct from null.
+    const { error } = await supabase.from('casino_rewards').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     return !error;
 }
 

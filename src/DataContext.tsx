@@ -23,6 +23,8 @@ import {
     saveQuest,
     deleteQuestFromSupabase,
     saveBonusClaims,
+    updateUserData,
+    clearAllCasinoRewards,
 } from './supabase';
 
 const TIER_IMAGES = {
@@ -307,6 +309,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
             const today = new Date().toISOString().slice(0, 10);
             if (currentData.lastDailyRefresh !== today) {
                 console.log("Refreshing Daily Rewards...");
+
+                // If connected to Supabase, clear old rewards before generating new ones
+                if (isSupabaseConfigured()) {
+                    await clearAllCasinoRewards();
+                }
+
                 const newRewards = generateDailyRewards();
                 currentData.casinoRewards = newRewards;
                 currentData.lastDailyRefresh = today;
@@ -451,6 +459,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
             updateUserPoints(data.currentPoints);
         }
     }, [data.currentPoints]);
+
+    // Sync selected character to cloud
+    useEffect(() => {
+        if (!hasInitializedRef.current) return;
+        if (isSupabaseConfigured()) {
+            updateUserData({ selected_character_id: data.selectedCharacterId });
+        }
+    }, [data.selectedCharacterId]);
+
+    // Sync daily refresh date to cloud
+    useEffect(() => {
+        if (!hasInitializedRef.current) return;
+        if (isSupabaseConfigured()) {
+            updateUserData({ last_daily_refresh: data.lastDailyRefresh });
+        }
+    }, [data.lastDailyRefresh]);
 
     const addPoints = useCallback((points: number) => {
         setData(prev => ({ ...prev, currentPoints: prev.currentPoints + points }));
@@ -1049,51 +1073,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
     }, [data.quests]);
 
-    const toggleQuestCompletion = useCallback((id: string) => {
-        setData(prev => {
-            const quest = prev.quests.find(q => q.id === id);
-            if (!quest) return prev;
 
-            const isNowCompleted = !quest.isCompleted;
-            let pointsChange = 0;
-
-            // Logic: 
-            // If marking complete -> Add points
-            // If marking incomplete -> Remove points (undo)
-            if (isNowCompleted) {
-                pointsChange = quest.points;
-            } else {
-                pointsChange = -quest.points;
-            }
-
-            // Side effect: Log it
-            const newLog: LogEntry = {
-                id: generateId(),
-                message: `${isNowCompleted ? 'Completed' : 'Undo'}: Quest "${quest.title}"`,
-                timestamp: new Date().toISOString(),
-                type: 'activity', // Using activity type for now
-                pointsChange: pointsChange
-            };
-
-            // This update is inside the state update, be careful with side-effects
-            // Actually 'logActivity' does both log and point update.
-            // But we are in a reducer-like pattern here.
-
-            // Let's do it cleanly:
-            const updatedQuests = prev.quests.map(q =>
-                q.id === id
-                    ? { ...q, isCompleted: isNowCompleted, lastCompletedAt: isNowCompleted ? new Date().toISOString() : undefined }
-                    : q
-            );
-
-            return {
-                ...prev,
-                quests: updatedQuests,
-                currentPoints: prev.currentPoints + pointsChange,
-                logs: [...(prev.logs || []), newLog]
-            };
-        });
-    }, []);
 
     const claimDailyBonus = useCallback(() => {
         setData(prev => {

@@ -3,7 +3,7 @@ import { LayoutDashboard, ShoppingBag, Settings as SettingsIcon, Bell, Cloud, Ha
 import { DataProvider, useData } from './DataContext';
 import { TimerProvider, useTimer } from './TimerContext';
 import { Dashboard } from './Dashboard';
-import { Activities } from './Activities';
+
 import { Shop } from './Shop';
 import { ShopManager } from './ShopManager';
 import { Casino } from './Casino';
