@@ -114,8 +114,15 @@ export function GachaSpinner({ rewards, isSpinning, winningReward, onComplete }:
                     setTargetIndex(target);
                 });
             });
+
+            // Safety timeout: Ensure we unblock if transition event fails (approx 6s transition + buffer)
+            const safetyTimer = setTimeout(() => {
+                onComplete();
+            }, 8000); // 8 seconds safety
+
+            return () => clearTimeout(safetyTimer);
         }
-    }, [isSpinning, winningReward, rewards]);
+    }, [isSpinning, winningReward, rewards, onComplete]);
 
     const itemWidth = 100;
     const itemGap = 16;

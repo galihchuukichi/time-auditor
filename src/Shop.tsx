@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ShoppingBag } from 'lucide-react';
 import { useData } from './DataContext';
 import { getLegendaryAuraClass, type InventoryItem, type CasinoReward } from './store'; // Import types
@@ -24,7 +24,7 @@ export function Shop() {
     };
 
     // Map ShopItems to CasinoRewards interface for GachaSpinner
-    const spinnerRewards: CasinoReward[] = data.shopItems.map(item => ({
+    const spinnerRewards: CasinoReward[] = useMemo(() => data.shopItems.map(item => ({
         id: item.id,
         name: item.name,
         image: item.image,
@@ -32,7 +32,7 @@ export function Shop() {
         minRoll: 0,
         cost: 0,
         description: ''
-    }));
+    })), [data.shopItems]);
 
     // Find the winning ShopItem corresponding to the InventoryItem we won
     const winningShopItem = winningResult
