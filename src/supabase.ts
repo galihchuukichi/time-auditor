@@ -161,6 +161,9 @@ export async function saveActivity(activity: Activity): Promise<boolean> {
         is_visible: activity.isVisible,
     });
 
+    if (error) {
+        console.error('Error saving activity:', error);
+    }
     return !error;
 }
 
@@ -185,6 +188,9 @@ export async function saveShopItem(item: ShopItem): Promise<boolean> {
         tier: item.tier,
     });
 
+    if (error) {
+        console.error('Error saving shop item:', error);
+    }
     return !error;
 }
 
@@ -340,6 +346,9 @@ export async function saveCasinoReward(reward: CasinoReward): Promise<boolean> {
         aura_colors: reward.auraColors,
     });
 
+    if (error) {
+        console.error('Error saving casino reward:', error);
+    }
     return !error;
 }
 
@@ -397,6 +406,9 @@ export async function saveInventoryItem(item: any): Promise<boolean> {
         aura_colors: item.auraColors,
     });
 
+    if (error) {
+        console.error('Error saving inventory item:', error);
+    }
     return !error;
 }
 

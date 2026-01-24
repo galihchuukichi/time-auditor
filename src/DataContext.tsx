@@ -204,9 +204,9 @@ interface DataContextType {
     toggleActivityVisibility: (id: string) => void;
     logActivity: (id: string) => void;
     // Shop
-    addShopItem: (item: Omit<ShopItem, 'id'>) => void;
-    updateShopItem: (id: string, updates: Partial<ShopItem>) => void;
-    deleteShopItem: (id: string) => void;
+    addShopItem: (item: Omit<ShopItem, 'id'>) => Promise<boolean>;
+    updateShopItem: (id: string, updates: Partial<ShopItem>) => Promise<boolean>;
+    deleteShopItem: (id: string) => Promise<boolean>;
     purchaseItem: (id: string) => boolean;
     // Timeline
     addTimelineEntry: (entry: Omit<TimelineEntry, 'id'>) => void;
@@ -569,18 +569,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }, [data.activities]);
 
     // Shop functions
-    const addShopItem = useCallback((item: Omit<ShopItem, 'id'>) => {
+    const addShopItem = useCallback(async (item: Omit<ShopItem, 'id'>) => {
         const newItem = { ...item, id: generateId() };
         setData(prev => ({
             ...prev,
             shopItems: [...prev.shopItems, newItem],
         }));
         if (isSupabaseConfigured()) {
-            saveShopItemToSupabase(newItem);
+            return await saveShopItemToSupabase(newItem);
         }
+        return true;
     }, []);
 
-    const updateShopItem = useCallback((id: string, updates: Partial<ShopItem>) => {
+    const updateShopItem = useCallback(async (id: string, updates: Partial<ShopItem>) => {
         setData(prev => {
             const updated = prev.shopItems.map(i => (i.id === id ? { ...i, ...updates } : i));
             return { ...prev, shopItems: updated };
@@ -588,18 +589,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         const item = data.shopItems.find(i => i.id === id);
         if (item && isSupabaseConfigured()) {
-            saveShopItemToSupabase({ ...item, ...updates });
+            return await saveShopItemToSupabase({ ...item, ...updates });
         }
+        return true;
     }, [data.shopItems]);
 
-    const deleteShopItem = useCallback((id: string) => {
+    const deleteShopItem = useCallback(async (id: string) => {
         setData(prev => ({
             ...prev,
             shopItems: prev.shopItems.filter(i => i.id !== id),
         }));
         if (isSupabaseConfigured()) {
-            deleteShopItemFromSupabase(id);
+            return await deleteShopItemFromSupabase(id);
         }
+        return true;
     }, []);
 
     const purchaseItem = useCallback((id: string): boolean => {

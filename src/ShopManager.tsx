@@ -34,6 +34,7 @@ export function ShopManager() {
     }>({ name: '', image: '🎁', price: 1, tier: 4 });
 
     const [uploading, setUploading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageUploadRef = useRef<HTMLInputElement>(null);
@@ -53,27 +54,41 @@ export function ShopManager() {
         }
     };
 
-    const handleAdd = () => {
+    const handleAdd = async () => {
         if (!form.name.trim()) return;
-        addShopItem({
-            name: form.name.trim(),
-            image: form.image,
-            price: Math.max(0.01, form.price),
-            tier: form.tier, // Pass tier
-        } as any); // Cast because store might not be fully updated in typescript intelligence yet
-        resetForm();
-    };
-
-    const handleUpdate = (id: string) => {
-        if (!form.name.trim()) return;
-        updateShopItem(id, {
+        setIsSaving(true);
+        const success = await addShopItem({
             name: form.name.trim(),
             image: form.image,
             price: Math.max(0.01, form.price),
             tier: form.tier,
         } as any);
-        setEditingId(null);
-        resetForm();
+        setIsSaving(false);
+
+        if (success) {
+            resetForm();
+        } else {
+            alert('Failed to save to Supabase. Please checking your internet connection or run the repair script.');
+        }
+    };
+
+    const handleUpdate = async (id: string) => {
+        if (!form.name.trim()) return;
+        setIsSaving(true);
+        const success = await updateShopItem(id, {
+            name: form.name.trim(),
+            image: form.image,
+            price: Math.max(0.01, form.price),
+            tier: form.tier,
+        } as any);
+        setIsSaving(false);
+
+        if (success) {
+            setEditingId(null);
+            resetForm();
+        } else {
+            alert('Failed to save changes to Supabase.');
+        }
     };
 
     const handleSave = () => {
@@ -244,10 +259,11 @@ export function ShopManager() {
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={!form.name.trim() || uploading}
+                                disabled={!form.name.trim() || uploading || isSaving}
                                 className="btn btn-success flex items-center gap-2"
                             >
-                                <Save className="w-4 h-4" /> Save Item
+                                {isSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {isSaving ? 'Saving...' : 'Save Item'}
                             </button>
                         </div>
                     </div>
@@ -282,7 +298,12 @@ export function ShopManager() {
                                 <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                                onClick={() => deleteShopItem(item.id)}
+                                onClick={async () => {
+                                    if (confirm('Are you sure you want to delete this item?')) {
+                                        const success = await deleteShopItem(item.id);
+                                        if (!success) alert('Failed to delete from Supabase.');
+                                    }
+                                }}
                                 className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-danger)] transition-colors"
                             >
                                 <Trash2 className="w-4 h-4" />
