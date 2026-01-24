@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BellOff, Clock, Power, PowerOff, X, ClipboardList, Search, ChevronLeft, ChevronRight, Plus, Minus, Gift, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { BellOff, Clock, Power, PowerOff, X, ClipboardList, Search, ChevronLeft, ChevronRight, Plus, Minus, Gift, CheckCircle2, AlertTriangle, Trash2 } from 'lucide-react';
 import { useTimer } from './TimerContext';
 import { useData } from './DataContext';
 import { PLANNING_POINTS, AUDITING_POINTS } from './store';
@@ -58,7 +58,7 @@ interface ModalState {
 
 export function Dashboard() {
     const timer = useTimer();
-    const { data, logActivity, addTimelineEntry, removeTimelineEntry, updateQuestProgress, claimDailyBonus, claimWeeklyBonus, logQuestPenalty } = useData();
+    const { data, logActivity, addTimelineEntry, removeTimelineEntry, updateQuestProgress, claimDailyBonus, claimWeeklyBonus, logQuestPenalty, addActivity, deleteActivity } = useData();
     const [justLogged, setJustLogged] = useState<string | null>(null);
     const [modal, setModal] = useState<ModalState | null>(null);
     const [entryDescription, setEntryDescription] = useState('');
@@ -68,6 +68,29 @@ export function Dashboard() {
     const [auditingDate, setAuditingDate] = useState(getTodayDateString());
     const [expandedLogs, setExpandedLogs] = useState(false);
     const [questTab, setQuestTab] = useState<'daily' | 'weekly'>('daily');
+
+    // Punishment Management State
+    const [isAddingPunishment, setIsAddingPunishment] = useState(false);
+    const [newPunishmentName, setNewPunishmentName] = useState('');
+    const [newPunishmentPoints, setNewPunishmentPoints] = useState('');
+
+    const handleAddPunishment = () => {
+        if (!newPunishmentName.trim() || !newPunishmentPoints) return;
+
+        const points = Math.abs(parseFloat(newPunishmentPoints)); // Ensure positive magnitude
+        if (isNaN(points)) return;
+
+        addActivity({
+            name: newPunishmentName.trim(),
+            points: -points, // Always negative for punishment
+            type: 'punishment',
+            isVisible: true
+        });
+
+        setNewPunishmentName('');
+        setNewPunishmentPoints('');
+        setIsAddingPunishment(false);
+    };
 
     const visibleActivities = data.activities.filter(a => a.isVisible);
     // const rewards = visibleActivities.filter(a => a.type === 'reward'); // Replaced by Quests
@@ -313,7 +336,7 @@ export function Dashboard() {
                         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
                         const wib = new Date(utc + (3600000 * 7));
                         const wibDateStr = wib.toISOString().split('T')[0];
-                        
+
                         // Week start (Monday based for consistency with store?)
                         // getStartOfWeekWIB uses Monday as start if getDay() returns 1. 0 is Sun.
                         // Impl: day=0(Sun) -> -6. day=1(Mon) -> 0.
@@ -330,7 +353,7 @@ export function Dashboard() {
                         const handleProgress = (quest: any, delta: number) => {
                             const target = quest.targetValue || 1;
                             const current = quest.currentValue || 0;
-                            
+
                             // Check Penalty on Minus
                             if (delta < 0 && current === 0) {
                                 if (confirm(`Mark "${quest.title}" as FORGOTTEN? You will be penalized 50 points.`)) {
@@ -341,7 +364,7 @@ export function Dashboard() {
 
                             let next = current + delta;
                             if (next < 0) next = 0;
-                            
+
                             // Checkbox logic
                             if (target === 1) {
                                 next = delta > 0 ? 1 : 0;
@@ -406,7 +429,7 @@ export function Dashboard() {
                                                         <span className="text-[var(--color-success)] font-bold text-xs">+{quest.points}</span>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div className="flex items-center justify-between gap-4">
                                                     {/* Progress */}
                                                     <div className="flex-1 flex flex-col gap-1">
@@ -456,20 +479,92 @@ export function Dashboard() {
 
                 {/* Punishments */}
                 <div className="card">
-                    <h3 className="text-lg font-semibold mb-4 text-[var(--color-highlight)]">⚠️ Punishments</h3>
-                    <div className="space-y-2">
-                        {punishments.length === 0 ? (
-                            <p className="text-[var(--color-text-muted)] text-sm">No visible punishments. Add some in Activities tab.</p>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-[var(--color-highlight)] flex items-center gap-2">
+                            ⚠️ Punishments
+                        </h3>
+                        <button
+                            onClick={() => setIsAddingPunishment(!isAddingPunishment)}
+                            className="p-2 rounded hover:bg-[var(--color-bg-secondary)] transition-colors text-[var(--color-text-muted)] hover:text-white"
+                            title={isAddingPunishment ? "Cancel" : "Add Punishment"}
+                        >
+                            {isAddingPunishment ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                        </button>
+                    </div>
+
+                    {isAddingPunishment && (
+                        <div className="mb-6 p-4 bg-[var(--color-bg-secondary)]/50 rounded-xl border border-[var(--color-border)] animate-in slide-in-from-top-2">
+                            <h4 className="text-sm font-medium mb-3 text-[var(--color-text-muted)]">New Punishment</h4>
+                            <div className="space-y-3">
+                                <div>
+                                    <input
+                                        type="text"
+                                        className="input w-full"
+                                        placeholder="Punishment Name (e.g., Distracted)"
+                                        value={newPunishmentName}
+                                        onChange={(e) => setNewPunishmentName(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        className="input w-full pl-8"
+                                        placeholder="Points to deduct (e.g., 5)"
+                                        value={newPunishmentPoints}
+                                        onChange={(e) => setNewPunishmentPoints(e.target.value)}
+                                        min="0"
+                                    />
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-highlight)] font-bold">-</span>
+                                </div>
+                                <button
+                                    onClick={handleAddPunishment}
+                                    disabled={!newPunishmentName.trim() || !newPunishmentPoints}
+                                    className="btn w-full bg-[var(--color-highlight)] hover:bg-red-600 text-white flex justify-center items-center gap-2"
+                                >
+                                    <Plus className="w-4 h-4" /> Add Punishment
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-3">
+                        {punishments.length === 0 && !isAddingPunishment ? (
+                            <div className="text-center py-8 border border-dashed border-[var(--color-border)] rounded-lg">
+                                <p className="text-[var(--color-text-muted)] text-sm mb-2">No active punishments.</p>
+                                <button
+                                    onClick={() => setIsAddingPunishment(true)}
+                                    className="text-[var(--color-primary)] text-sm hover:underline"
+                                >
+                                    Add one to stay disciplined!
+                                </button>
+                            </div>
                         ) : (
                             punishments.map(activity => (
-                                <button
-                                    key={activity.id}
-                                    onClick={() => handleLogActivity(activity.id)}
-                                    className={`w-full text-left px-4 py-3 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-accent)] transition-all flex justify-between items-center ${justLogged === activity.id ? 'ring-2 ring-[var(--color-highlight)]' : ''}`}
-                                >
-                                    <span>{activity.name}</span>
-                                    <span className="text-[var(--color-highlight)] font-semibold">{activity.points.toFixed(2)}</span>
-                                </button>
+                                <div key={activity.id} className="flex items-stretch gap-2 group">
+                                    <button
+                                        onClick={() => handleLogActivity(activity.id)}
+                                        className={`flex-1 text-left px-4 py-4 rounded-xl bg-[var(--color-surface)] hover:bg-[var(--color-highlight)]/10 border border-[var(--color-border)] hover:border-[var(--color-highlight)] transition-all flex justify-between items-center ${justLogged === activity.id ? 'ring-2 ring-[var(--color-highlight)] bg-[var(--color-highlight)]/20' : ''}`}
+                                        title="Tap to apply punishment"
+                                    >
+                                        <span className="font-medium text-gray-200">{activity.name}</span>
+                                        <span className="text-[var(--color-highlight)] font-bold text-lg">{activity.points.toFixed(0)} pts</span>
+                                    </button>
+
+                                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`Are you sure you want to remove "${activity.name}" from punishments?`)) {
+                                                    deleteActivity(activity.id);
+                                                }
+                                            }}
+                                            className="h-full px-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all flex items-center justify-center"
+                                            title="Delete Punishment"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
                             ))
                         )}
                     </div>
