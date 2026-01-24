@@ -289,6 +289,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
                             new Date(b.acquiredAt).getTime() - new Date(a.acquiredAt).getTime()
                         );
 
+                        // Filter out shop items from merged inventory (Cleanup)
+                        // If an item's rewardId exists in shopItems, it shouldn't be in inventory (as per new rule)
+                        // We use a Set for O(1) lookup
+                        // Note: shopItems is also loaded from cloud or local
+                        const shopItemIds = new Set((cloudData.shopItems || []).map(s => s.id));
+                        const cleanedInv = mergedInv.filter(item => !shopItemIds.has(item.rewardId));
+
                         // Merge Quests
                         const localQuests = currentData.quests || [];
                         const cloudQuests = cloudData.quests || [];
@@ -308,7 +315,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
                         currentData = {
                             ...cloudData,
-                            inventory: mergedInv,
+                            inventory: cleanedInv,
                             quests: mergedQuests,
                             lastDailyBonusClaimed: mergedDaily,
                             lastWeeklyBonusClaimed: mergedWeekly
@@ -448,22 +455,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 if (hasChanges) {
                     updates.shopItems = updatedShopItems;
                 }
-                if (hasChanges) {
-                    updates.shopItems = updatedShopItems;
-                }
             }
 
-            // Backfill Inventory Types
+            // Cleanup / Backfill Inventory Types
             if (prev.inventory) {
-                const updatedInventory = prev.inventory.map(item => {
-                    if (item.type) return item;
-                    // Infer type
-                    const isCharacter = item.image.startsWith('/tier'); // Tier images usually start with /tier
-                    return {
-                        ...item,
-                        type: isCharacter ? 'character' : 'shop_item' // Default fallback
-                    } as InventoryItem;
-                });
+                // Remove items that are known to be shop items
+                const shopItemIds = new Set((prev.shopItems || []).map(s => s.id));
+
+                const updatedInventory = prev.inventory
+                    .filter(item => !shopItemIds.has(item.rewardId)) // Remove Shop Items
+                    .map(item => {
+                        if (item.type) return item;
+                        // Infer type (fallback)
+                        const isCharacter = item.image.startsWith('/tier');
+                        return {
+                            ...item,
+                            type: isCharacter ? 'character' : 'shop_item'
+                        } as InventoryItem;
+                    })
+                    // Double check: if inference said shop_item, we might want to keep it if it wasn't caught by ID check?
+                    // User said "locker should only contain characters".
+                    // If we inferred it as shop_item, we should probably hide it too?
+                    // But 'shop_item' inference is weak (based on Not /tier). 
+                    // Let's stick to the ID check primarily for DELETION to be safe, 
+                    // but we can trust the ID check because we loaded shop items.
+                    ;
 
                 if (JSON.stringify(updatedInventory) !== JSON.stringify(prev.inventory)) {
                     updates.inventory = updatedInventory;
@@ -803,14 +819,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (isSupabaseConfigured()) {
             addCasinoGameHistory(historyEntry);
             addLogEntry(newLog);
-            saveInventoryItemToSupabase(newInventoryItem);
+            // Shop Items are ephemeral / consumable, do not save to inventory
+            // saveInventoryItemToSupabase(newInventoryItem); 
         }
 
         setData(prev => ({
             ...prev,
             currentPoints: prev.currentPoints - GACHA_COST,
             casinoHistory: [historyEntry, ...prev.casinoHistory],
-            inventory: [newInventoryItem, ...prev.inventory],
+            // inventory: [newInventoryItem, ...prev.inventory], // Do not add to inventory
             logs: [...(prev.logs || []), newLog],
         }));
 
@@ -881,14 +898,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (isSupabaseConfigured()) {
             addCasinoGameHistory(historyEntry); // Logging to casino history for now as "Gacha"
             addLogEntry(newLog);
-            saveInventoryItemToSupabase(newInventoryItem);
+            // Shop Items are ephemeral / consumable, do not save to inventory
+            // saveInventoryItemToSupabase(newInventoryItem);
         }
 
         setData(prev => ({
             ...prev,
             currentPoints: prev.currentPoints - cost,
             casinoHistory: [historyEntry, ...prev.casinoHistory], // Unified history
-            inventory: [newInventoryItem, ...prev.inventory],
+            // inventory: [newInventoryItem, ...prev.inventory], // Do not add to inventory
             logs: [...(prev.logs || []), newLog],
         }));
 
