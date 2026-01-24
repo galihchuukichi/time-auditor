@@ -5,6 +5,21 @@ import type { ShopItem } from './store';
 import { EmojiPicker } from './EmojiPicker'; // Keep as fallback/option if desired, or remove if strictly 1:1 image
 import { uploadShopImage } from './supabase';
 
+const TierBadge = ({ tier }: { tier: number }) => {
+    const colors = {
+        1: 'bg-yellow-900 text-yellow-400 border-yellow-400',
+        2: 'bg-purple-900 text-purple-400 border-purple-400',
+        3: 'bg-blue-900 text-blue-400 border-blue-400',
+        4: 'bg-gray-700 text-gray-300 border-gray-400',
+    };
+    const labels = { 1: 'Legendary', 2: 'Rare', 3: 'Uncommon', 4: 'Common' };
+    return (
+        <span className={`px-2 py-0.5 rounded text-xs border ${colors[tier as keyof typeof colors]}`}>
+            {labels[tier as keyof typeof labels]}
+        </span>
+    );
+};
+
 export function ShopManager() {
     const { data, addShopItem, updateShopItem, deleteShopItem, exportData, importData } = useData();
     const [isAdding, setIsAdding] = useState(false);
@@ -61,6 +76,14 @@ export function ShopManager() {
         resetForm();
     };
 
+    const handleSave = () => {
+        if (isAdding) {
+            handleAdd();
+        } else if (editingId) {
+            handleUpdate(editingId);
+        }
+    };
+
     const startEdit = (item: ShopItem) => {
         setEditingId(item.id);
         setForm({
@@ -96,112 +119,6 @@ export function ShopManager() {
         reader.readAsText(file);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
-
-    const TierBadge = ({ tier }: { tier: number }) => {
-        const colors = {
-            1: 'bg-yellow-900 text-yellow-400 border-yellow-400',
-            2: 'bg-purple-900 text-purple-400 border-purple-400',
-            3: 'bg-blue-900 text-blue-400 border-blue-400',
-            4: 'bg-gray-700 text-gray-300 border-gray-400',
-        };
-        const labels = { 1: 'Legendary', 2: 'Rare', 3: 'Uncommon', 4: 'Common' };
-        return (
-            <span className={`px-2 py-0.5 rounded text-xs border ${colors[tier as keyof typeof colors]}`}>
-                {labels[tier as keyof typeof labels]}
-            </span>
-        );
-    };
-
-    const FormContent = ({ onSave, onCancel }: { onSave: () => void, onCancel: () => void }) => (
-        <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm text-[var(--color-text-muted)] mb-1">Item Name</label>
-                    <input
-                        type="text"
-                        value={form.name}
-                        onChange={e => setForm({ ...form, name: e.target.value })}
-                        className="input w-full"
-                        autoFocus
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm text-[var(--color-text-muted)] mb-1">Tier (Probability)</label>
-                    <select
-                        value={form.tier}
-                        onChange={e => setForm({ ...form, tier: Number(e.target.value) as 1 | 2 | 3 | 4 })}
-                        className="input w-full"
-                    >
-                        <option value={4}>Common (50%)</option>
-                        <option value={3}>Uncommon (37%)</option>
-                        <option value={2}>Rare (13%)</option>
-                        <option value={1}>Legendary (0% - Trade Up)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label className="block text-sm text-[var(--color-text-muted)] mb-2">Image (1:1 Ratio)</label>
-                <div className="flex items-start gap-4">
-                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-[var(--color-border)] bg-[var(--color-bg-secondary)] flex items-center justify-center group">
-                        {uploading ? (
-                            <Loader className="w-8 h-8 animate-spin text-[var(--color-highlight)]" />
-                        ) : form.image.startsWith('http') || form.image.startsWith('/') ? (
-                            <img src={form.image} alt="Preview" className="w-full h-full object-cover" />
-                        ) : (
-                            <span className="text-4xl">{form.image}</span>
-                        )}
-                        <button
-                            onClick={() => imageUploadRef.current?.click()}
-                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
-                        >
-                            <Upload className="w-6 h-6" />
-                        </button>
-                    </div>
-
-                    <div className="flex-1 space-y-2">
-                        <input
-                            ref={imageUploadRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                        />
-                        <button
-                            onClick={() => imageUploadRef.current?.click()}
-                            className="btn btn-secondary btn-sm flex items-center gap-2"
-                        >
-                            <ImageIcon className="w-4 h-4" /> Upload Image
-                        </button>
-                        <p className="text-xs text-[var(--color-text-muted)]">
-                            Upload a 1:1 ratio image. This will be saved to Supabase.
-                        </p>
-
-                        <div className="pt-2">
-                            <p className="text-xs text-[var(--color-text-muted)] mb-1">Or use emoji:</p>
-                            <EmojiPicker
-                                value={form.image.length < 5 ? form.image : '🎁'} // Only show emoji in picker if it looks like one
-                                onChange={(emoji) => setForm({ ...form, image: emoji })}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-2">
-                <button onClick={onCancel} className="btn btn-secondary flex items-center gap-2">
-                    <X className="w-4 h-4" /> Cancel
-                </button>
-                <button
-                    onClick={onSave}
-                    disabled={!form.name.trim() || uploading}
-                    className="btn btn-success flex items-center gap-2"
-                >
-                    <Save className="w-4 h-4" /> Save Item
-                </button>
-            </div>
-        </div>
-    );
 
     return (
         <div className="space-y-6">
@@ -246,12 +163,94 @@ export function ShopManager() {
             {(isAdding || editingId) && (
                 <div className="card border-2 border-[var(--color-highlight)]">
                     <h3 className="text-lg font-medium mb-4">{isAdding ? 'New Shop Item' : 'Edit Shop Item'}</h3>
-                    {isAdding ? (
-                        <FormContent onSave={handleAdd} onCancel={resetForm} />
-                    ) : (
-                        // If editingId is set, we find the item but we already loaded into form state
-                        <FormContent onSave={() => handleUpdate(editingId!)} onCancel={resetForm} />
-                    )}
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm text-[var(--color-text-muted)] mb-1">Item Name</label>
+                                <input
+                                    type="text"
+                                    value={form.name}
+                                    onChange={e => setForm({ ...form, name: e.target.value })}
+                                    className="input w-full"
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-[var(--color-text-muted)] mb-1">Tier (Probability)</label>
+                                <select
+                                    value={form.tier}
+                                    onChange={e => setForm({ ...form, tier: Number(e.target.value) as 1 | 2 | 3 | 4 })}
+                                    className="input w-full"
+                                >
+                                    <option value={4}>Common (50%)</option>
+                                    <option value={3}>Uncommon (37%)</option>
+                                    <option value={2}>Rare (13%)</option>
+                                    <option value={1}>Legendary (0% - Trade Up)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm text-[var(--color-text-muted)] mb-2">Image (1:1 Ratio)</label>
+                            <div className="flex items-start gap-4">
+                                <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-[var(--color-border)] bg-[var(--color-bg-secondary)] flex items-center justify-center group">
+                                    {uploading ? (
+                                        <Loader className="w-8 h-8 animate-spin text-[var(--color-highlight)]" />
+                                    ) : form.image.startsWith('http') || form.image.startsWith('/') ? (
+                                        <img src={form.image} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-4xl">{form.image}</span>
+                                    )}
+                                    <button
+                                        onClick={() => imageUploadRef.current?.click()}
+                                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                                    >
+                                        <Upload className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 space-y-2">
+                                    <input
+                                        ref={imageUploadRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className="hidden"
+                                    />
+                                    <button
+                                        onClick={() => imageUploadRef.current?.click()}
+                                        className="btn btn-secondary btn-sm flex items-center gap-2"
+                                    >
+                                        <ImageIcon className="w-4 h-4" /> Upload Image
+                                    </button>
+                                    <p className="text-xs text-[var(--color-text-muted)]">
+                                        Upload a 1:1 ratio image. This will be saved to Supabase.
+                                    </p>
+
+                                    <div className="pt-2">
+                                        <p className="text-xs text-[var(--color-text-muted)] mb-1">Or use emoji:</p>
+                                        <EmojiPicker
+                                            value={form.image.length < 5 ? form.image : '🎁'} // Only show emoji in picker if it looks like one
+                                            onChange={(emoji) => setForm({ ...form, image: emoji })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 justify-end pt-2">
+                            <button onClick={resetForm} className="btn btn-secondary flex items-center gap-2">
+                                <X className="w-4 h-4" /> Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={!form.name.trim() || uploading}
+                                className="btn btn-success flex items-center gap-2"
+                            >
+                                <Save className="w-4 h-4" /> Save Item
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
