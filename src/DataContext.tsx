@@ -234,8 +234,9 @@ interface DataContextType {
 
 // Time Utils for WIB (UTC+7)
 export function getWIBDate(date: Date = new Date()): Date {
-    const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-    return new Date(utc + (3600000 * 7));
+    // Add 7 hours (in ms) to the UTC timestamp
+    // This creates a Date object where toISOString() returns the WIB time
+    return new Date(date.getTime() + (3600000 * 7));
 }
 
 
@@ -296,10 +297,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
                         cloudQuests.forEach(q => mergedQuestsMap.set(q.id, q));
                         const mergedQuests = Array.from(mergedQuestsMap.values());
 
+                        // Smart merge for bonus claims (prefer later dates)
+                        const mergedDaily = (currentData.lastDailyBonusClaimed || "") > (cloudData.lastDailyBonusClaimed || "")
+                            ? currentData.lastDailyBonusClaimed
+                            : cloudData.lastDailyBonusClaimed;
+
+                        const mergedWeekly = (currentData.lastWeeklyBonusClaimed || "") > (cloudData.lastWeeklyBonusClaimed || "")
+                            ? currentData.lastWeeklyBonusClaimed
+                            : cloudData.lastWeeklyBonusClaimed;
+
                         currentData = {
                             ...cloudData,
                             inventory: mergedInv,
-                            quests: mergedQuests
+                            quests: mergedQuests,
+                            lastDailyBonusClaimed: mergedDaily,
+                            lastWeeklyBonusClaimed: mergedWeekly
                         };
                     }
                 } catch (error) {
