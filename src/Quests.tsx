@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle2, Gift, Plus, Minus, Clock } from 'lucide-react';
-import { useData } from './DataContext';
+import { useData, getWIBDateString } from './DataContext';
 import type { Quest } from './store';
 
 export function Quests() {
@@ -8,7 +8,14 @@ export function Quests() {
     const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
 
     // Group quests
-    const todayWIB = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7));
+    const todayWIBString = getWIBDateString();
+    // For day index, we can parse the string or use the date object from same util?
+    // Let's just re-instantiate a checked date for the index logic if needed, 
+    // or better, rely on the string for consistency.
+    // The previous code calculated `todayWIB` manually.
+
+    // We need the day index (0-6)
+    const todayWIB = new Date(new Date().getTime() + (3600000 * 7));
     const todayIndex = todayWIB.getDay(); // 0-6
 
     const dailyQuests = (data.quests || []).filter(q => {
@@ -30,7 +37,6 @@ export function Quests() {
     const totalDailyCount = dailyQuestsForBonus.length;
 
     // Check if bonus is available
-    const todayWIBString = todayWIB.toISOString().split('T')[0];
     const isBonusClaimed = data.lastDailyBonusClaimed === todayWIBString;
     const canClaimBonus = totalDailyCount > 0 && completedDailyCount === totalDailyCount && !isBonusClaimed;
 

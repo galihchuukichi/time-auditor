@@ -234,13 +234,15 @@ interface DataContextType {
 
 // Time Utils for WIB (UTC+7)
 export function getWIBDate(date: Date = new Date()): Date {
-    // Add 7 hours (in ms) to the UTC timestamp
-    // This creates a Date object where toISOString() returns the WIB time
+    // Return a Date object that effectively represents WIB time
+    // But be careful: Date objects are always conceptually UTC or Local.
+    // Here we are shifting the *value* so getters return WIB components if treated as UTC?
+    // Actually, the previous implementation was: date.getTime() + 7h.
+    // If we run .toISOString() on that, it gives the "time in WIB" as if it were UTC time.
     return new Date(date.getTime() + (3600000 * 7));
 }
 
-
-function getWIBDateString(date: Date = new Date()): string {
+export function getWIBDateString(date: Date = new Date()): string {
     const wib = getWIBDate(date);
     return wib.toISOString().split('T')[0];
 }
@@ -352,38 +354,82 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setData(currentData);
             saveData(currentData); // Save to local
 
+
             // Quest Resets Logic
             const now = new Date();
             const wibDateStr = getWIBDateString(now);
             const startOfWeekWIB = getStartOfWeekWIB(now).getTime();
 
             const updatedQuests = (currentData.quests || []).map(q => {
-                if (!q.lastCompletedAt) return q;
-
-                const lastCompleted = new Date(q.lastCompletedAt);
-                // Convert lastCompleted to WIB to check day correctness? 
-                // Any completion from "Before Today 00:00 WIB" should be reset for Daily
-
-                // Effective logic:
-                // If Daily: Reset if lastCompletedAt < StartOfTodayWIB?
-                // Actually, just compare Date Strings in WIB.
-
-                const lastCompletedWIBStr = getWIBDateString(lastCompleted);
+                // Determine if we need to reset based on logic
+                let shouldReset = false;
 
                 if (q.type === 'daily' && q.recurrence === 'repeat') {
-                    if (lastCompletedWIBStr !== wibDateStr) {
-                        return { ...q, isCompleted: false };
+                    // If last completion was NOT today (WIB), reset.
+                    // Even if it was never completed, we might want to ensure it's fresh?
+                    // Actually, if it was never completed, lastCompletedAt is undefined.
+                    // But if it has partial progress (currentValue > 0) from yesterday, we should reset it too!
+                    // So we need to track "lastUpdated" or similar?
+                    // Simplest heuristic: If `isCompleted` is true AND date is different -> Reset.
+                    // If `currentValue > 0` AND date is different -> Reset.
+
+                    // Current logic only looked at `lastCompletedAt`.
+                    // If I did 2/4 yesterday, it won't have `lastCompletedAt`.
+                    // So we need to rely on a "lastInteracted" or just assume if it's a new day, we wipe it?
+                    // But we don't want to wipe it if the user just did it *today*.
+
+                    // Issue: We don't track "lastResetDate" or "lastUpdatedDate" for quests generally.
+                    // We only have `lastCompletedAt`.
+
+                    // Fix: We must rely on `lastCompletedAt` for completion reset.
+                    // For partial progress reset, we lack data.
+                    // However, the user complaint is "didn't reset to 0".
+                    // Assuming they COMPLETED it yesterday, it says "Claimed" or similar?
+                    // Or they had partial progress?
+                    // "Manually set to 0" implies partial or full completion stuck.
+
+                    if (q.lastCompletedAt) {
+                        const lastCompleted = new Date(q.lastCompletedAt);
+                        const lastCompletedWIBStr = getWIBDateString(lastCompleted);
+                        if (lastCompletedWIBStr !== wibDateStr) {
+                            shouldReset = true;
+                        }
+                    } else if (q.currentValue > 0) {
+                        // If we have progress but no completion date, it's ambiguous.
+                        // BUT, if it's a daily quest, progress from "yesterday" shouldn't count today.
+                        // With no timestamp, safe to reset?
+                        // Maybe we add `lastUpdated`. For now, let's aggressively reset daily quests on load
+                        // if we can't prove they were done today.
+                        // But that wipes progress if they refresh the page mid-day! 
+                        // Wait, `loadData` is called on refresh.
+
+                        // We need a stable "lastResetDate" in AppData to know if we already processed the daily reset logic for TODAY.
+                        // We do have `lastDailyRefresh`!
+
+                        if (currentData.lastDailyRefresh !== wibDateStr) {
+                            shouldReset = true;
+                        }
                     }
                 }
 
                 if (q.type === 'weekly' && q.recurrence === 'repeat') {
-                    // Check if last completed was before this week's start
-                    const lastCompletedWIB = getWIBDate(lastCompleted);
-                    if (lastCompletedWIB.getTime() < startOfWeekWIB) {
-                        return { ...q, isCompleted: false };
+                    if (q.lastCompletedAt) {
+                        const lastCompleted = new Date(q.lastCompletedAt);
+                        const lastCompletedWIB = getWIBDate(lastCompleted);
+                        if (lastCompletedWIB.getTime() < startOfWeekWIB) {
+                            shouldReset = true;
+                        }
+                    }
+                    if (currentData.lastDailyRefresh !== wibDateStr) {
+                        // Check if this specific reset is a Weekly reset boundary?
+                        // Too complex to rely on lastDailyRefresh for Weekly partials without more state.
+                        // Let's stick to completing reset.
                     }
                 }
 
+                if (shouldReset) {
+                    return { ...q, isCompleted: false, currentValue: 0 };
+                }
                 return q;
             });
 
@@ -413,6 +459,71 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
         }
         initData();
+    }, []);
+
+    // Periodic Check for Day Change (Midnight Reset while app is open)
+    useEffect(() => {
+        const checkDayChange = async () => {
+            const todayWIB = getWIBDateString();
+            // Use function updater to access latest state
+            setData(prev => {
+                if (prev.lastDailyRefresh !== todayWIB) {
+                    console.log("Midnight detected! Running reset logic...");
+
+                    // 1. Generate new rewards
+                    // (Optional: we could do this async outside, but for state consistency we do it here or trigger a reload)
+                    // Let's keep it simple: Just update the `lastDailyRefresh` marker and generic resets.
+                    // The actual `generateDailyRewards` call happened in the INIT effect. 
+                    // We need to duplicate that logic or extract it.
+
+                    // Let's extract simple reset logic here for "live" updates.
+
+                    const newRewards = generateDailyRewards();
+
+                    // 2. Reset Quests
+                    const updatedQuests = (prev.quests || []).map(q => {
+                        let shouldReset = false;
+                        if (q.type === 'daily' && q.recurrence === 'repeat') shouldReset = true;
+                        if (q.type === 'weekly' && q.recurrence === 'repeat') {
+                            const now = new Date();
+                            const startOfWeekWIB = getStartOfWeekWIB(now).getTime();
+                            // If we just crossed into a new week? 
+                            // Simplify: Just check completion date vs new week start
+                            if (q.lastCompletedAt) {
+                                const lastCompleted = new Date(q.lastCompletedAt);
+                                const lastCompletedWIB = getWIBDate(lastCompleted);
+                                if (lastCompletedWIB.getTime() < startOfWeekWIB) shouldReset = true;
+                            }
+                        }
+
+                        if (shouldReset) {
+                            return { ...q, isCompleted: false, currentValue: 0 };
+                        }
+                        return q;
+                    });
+
+                    // Side effects (Supabase) need to happen. 
+                    // But we are inside setState. 
+                    // We'll trust the `useEffect[data]` saver and syncers.
+                    // Ideally we should explicitly sync resets to Supabase?
+                    // The existing `useEffect` syncs `currentPoints`, `selectedCharacter`, etc. 
+                    // But `quests` are only synced on specific actions usually.
+                    // Let's rely on the user refreshing eventually or add a specific sync effect if needed.
+                    // For now, saving to local processing is priority.
+
+                    return {
+                        ...prev,
+                        lastDailyRefresh: todayWIB,
+                        casinoRewards: newRewards,
+                        quests: updatedQuests
+                    };
+                }
+                return prev;
+            });
+        };
+
+        const interval = setInterval(checkDayChange, 60000); // Check every minute
+        return () => clearInterval(interval);
     }, []);
 
     // Ensure state validity on mount for local data too

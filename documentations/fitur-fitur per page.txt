@@ -1,0 +1,10 @@
+Fitur fitur
+🔴 # Dashboard
+1. Timer Status
+	a. Ring at 9am, 12pm,3pm,6pm,9pm
+	b. Ring logic: Looping 5 min ring, 5 min rest, repeat until I stop it.
+2. Show Current Points
+3. Planning
+	a. Everytime I filled-in the planning, I got +10 points as reward
+	b. Makesure the data is saved in supabase, this way I could see the same data across platform
+	c. 
