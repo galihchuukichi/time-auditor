@@ -210,14 +210,14 @@ export function Casino() {
                     {/* T3 -> T2 */}
                     <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg flex flex-col items-center text-center">
                         <h4 className="font-bold text-purple-400 mb-2">Get Rare (Tier 2)</h4>
-                        <p className="text-sm text-[var(--color-text-muted)] mb-4">Trade 10 Tier 3 Items</p>
+                        <p className="text-sm text-[var(--color-text-muted)] mb-4">Trade 12 Tier 3 Items</p>
                         <div className="mb-4 text-2xl font-bold">
-                            {counts.t3} / 10
+                            {counts.t3} / 12
                         </div>
                         <button
                             onClick={() => handleTradeUp(2)}
-                            disabled={counts.t3 < 10}
-                            className={`btn w-full ${counts.t3 >= 10 ? 'btn-primary' : 'btn-secondary opacity-50'}`}
+                            disabled={counts.t3 < 12}
+                            className={`btn w-full ${counts.t3 >= 12 ? 'btn-primary' : 'btn-secondary opacity-50'}`}
                         >
                             Trade Up
                         </button>
@@ -226,14 +226,14 @@ export function Casino() {
                     {/* T2 -> T1 */}
                     <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg flex flex-col items-center text-center border border-yellow-500/30">
                         <h4 className="font-bold text-yellow-400 mb-2">Get Legendary (Tier 1)</h4>
-                        <p className="text-sm text-[var(--color-text-muted)] mb-4">Trade 12 Tier 2 Items</p>
+                        <p className="text-sm text-[var(--color-text-muted)] mb-4">Trade 20 Tier 2 Items</p>
                         <div className="mb-4 text-2xl font-bold">
-                            {counts.t2} / 12
+                            {counts.t2} / 20
                         </div>
                         <button
                             onClick={() => handleTradeUp(1)}
-                            disabled={counts.t2 < 12}
-                            className={`btn w-full ${counts.t2 >= 12 ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'btn-secondary opacity-50'}`}
+                            disabled={counts.t2 < 20}
+                            className={`btn w-full ${counts.t2 >= 20 ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'btn-secondary opacity-50'}`}
                         >
                             Trade Up
                         </button>

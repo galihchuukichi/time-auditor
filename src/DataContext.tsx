@@ -1027,15 +1027,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const tradeUp = useCallback((targetTier: number): { success: boolean; message: string; newItem?: InventoryItem } => {
         // Trade Logic:
         // 6 T4 -> 1 T3
-        // 10 T3 -> 1 T2
-        // 12 T2 -> 1 T1
+        // 12 T3 -> 1 T2
+        // 20 T2 -> 1 T1
 
         let requiredCount = 0;
         let sourceTier = targetTier + 1;
 
         if (targetTier === 3) requiredCount = 6; // uses T4
-        else if (targetTier === 2) requiredCount = 10; // uses T3
-        else if (targetTier === 1) requiredCount = 12; // uses T2
+        else if (targetTier === 2) requiredCount = 12; // uses T3
+        else if (targetTier === 1) requiredCount = 20; // uses T2
         else return { success: false, message: "Invalid target tier" };
 
         const sourceItems = data.inventory.filter(i => i.tier === sourceTier && i.type === 'character');
